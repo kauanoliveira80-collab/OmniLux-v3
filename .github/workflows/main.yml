@@ -1,0 +1,434 @@
+name: Build LUX-Omega v5.4 APK
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Criar estrutura de pastas e arquivos
+        run: |
+          mkdir -p app/src/main/java/com/luxomega/iceberg
+          mkdir -p app/src/main/assets
+
+          cat << 'LUX_EOF' > settings.gradle
+          rootProject.name = "LUX-Omega-v5.4"
+          include(":app")
+          LUX_EOF
+
+          cat << 'LUX_EOF' > build.gradle
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.2.2'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          LUX_EOF
+
+          cat << 'LUX_EOF' > app/build.gradle
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.luxomega.iceberg'
+              compileSdk 34
+              defaultConfig {
+                  applicationId "com.luxomega.iceberg"
+                  minSdk 24
+                  targetSdk 34
+                  versionCode 54
+                  versionName "5.4"
+              }
+              buildTypes {
+                  release {
+                      minifyEnabled false
+                  }
+              }
+              compileOptions {
+                  sourceCompatibility JavaVersion.VERSION_17
+                  targetCompatibility JavaVersion.VERSION_17
+              }
+          }
+          LUX_EOF
+
+          cat << 'LUX_EOF' > app/src/main/AndroidManifest.xml
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+              <uses-permission android:name="android.permission.INTERNET" />
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+              <application
+                  android:allowBackup="true"
+                  android:label="LUX-Ω v5.4"
+                  android:usesCleartextTraffic="true"
+                  android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+                  <activity
+                      android:name=".MainActivity"
+                      android:exported="true"
+                      android:configChanges="orientation|screenSize|keyboardHidden"
+                      android:windowSoftInputMode="adjustResize">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          LUX_EOF
+
+          cat << 'LUX_EOF' > app/src/main/java/com/luxomega/iceberg/MainActivity.java
+          package com.luxomega.iceberg;
+
+          import android.annotation.SuppressLint;
+          import android.app.Activity;
+          import android.graphics.Color;
+          import android.os.Bundle;
+          import android.webkit.WebChromeClient;
+          import android.webkit.WebSettings;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+
+          public class MainActivity extends Activity {
+              private WebView webView;
+              private IcebergBridgeServer bridgeServer;
+
+              @SuppressLint("SetJavaScriptEnabled")
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  bridgeServer = new IcebergBridgeServer(8765);
+                  bridgeServer.start();
+
+                  webView = new WebView(this);
+                  webView.setBackgroundColor(Color.parseColor("#070b14"));
+
+                  WebSettings settings = webView.getSettings();
+                  settings.setJavaScriptEnabled(true);
+                  settings.setDomStorageEnabled(true);
+                  settings.setDatabaseEnabled(true);
+                  settings.setAllowFileAccess(true);
+                  settings.setAllowContentAccess(true);
+                  settings.setAllowFileAccessFromFileURLs(true);
+                  settings.setAllowUniversalAccessFromFileURLs(true);
+                  settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient());
+
+                  setContentView(webView);
+                  webView.loadUrl("file:///android_asset/index.html");
+              }
+
+              @Override
+              public void onBackPressed() {
+                  if (webView != null && webView.canGoBack()) {
+                      webView.goBack();
+                  } else {
+                      super.onBackPressed();
+                  }
+              }
+
+              @Override
+              protected void onDestroy() {
+                  if (bridgeServer != null) bridgeServer.stopServer();
+                  if (webView != null) webView.destroy();
+                  super.onDestroy();
+              }
+          }
+          LUX_EOF
+
+          cat << 'LUX_EOF' > app/src/main/java/com/luxomega/iceberg/IcebergBridgeServer.java
+          package com.luxomega.iceberg;
+
+          import org.json.JSONArray;
+          import org.json.JSONObject;
+          import java.io.*;
+          import java.net.*;
+          import java.nio.charset.StandardCharsets;
+          import java.util.*;
+          import java.util.concurrent.*;
+          import java.util.regex.*;
+          import javax.net.ssl.*;
+
+          public class IcebergBridgeServer extends Thread {
+              private final int port;
+              private volatile boolean running = true;
+              private ServerSocket serverSocket;
+              private final ExecutorService pool = Executors.newCachedThreadPool();
+
+              private static final String TOR_HOST = "127.0.0.1";
+              private static final int TOR_PORT = 9050;
+              private static final String I2P_HOST = "127.0.0.1";
+              private static final int I2P_PORT = 4444;
+              private static final String DEFAULT_SEARXNG = "http://127.0.0.1:8888";
+
+              public IcebergBridgeServer(int port) {
+                  this.port = port;
+                  setDaemon(true);
+              }
+
+              public void stopServer() {
+                  running = false;
+                  try { if (serverSocket != null) serverSocket.close(); } catch (IOException ignored) {}
+                  pool.shutdownNow();
+              }
+
+              @Override
+              public void run() {
+                  try {
+                      serverSocket = new ServerSocket();
+                      serverSocket.setReuseAddress(true);
+                      serverSocket.bind(new InetSocketAddress("127.0.0.1", port));
+                      while (running) {
+                          Socket client = serverSocket.accept();
+                          pool.submit(() -> handleClient(client));
+                      }
+                  } catch (IOException ignored) {}
+              }
+
+              private void handleClient(Socket client) {
+                  try (Socket s = client;
+                       InputStream in = new BufferedInputStream(s.getInputStream());
+                       OutputStream out = s.getOutputStream()) {
+
+                      String requestLine = readLine(in);
+                      if (requestLine == null || requestLine.isEmpty()) return;
+
+                      String[] parts = requestLine.split(" ");
+                      String method = parts.length > 0 ? parts[0] : "GET";
+                      String fullPath = parts.length > 1 ? parts[1] : "/";
+
+                      int contentLength = 0;
+                      String line;
+                      while ((line = readLine(in)) != null && !line.isEmpty()) {
+                          if (line.toLowerCase().startsWith("content-length:")) {
+                              contentLength = Integer.parseInt(line.substring(15).trim());
+                          }
+                      }
+
+                      String body = "";
+                      if (contentLength > 0) {
+                          byte[] buf = new byte[contentLength];
+                          int readTotal = 0;
+                          while (readTotal < contentLength) {
+                              int r = in.read(buf, readTotal, contentLength - readTotal);
+                              if (r == -1) break;
+                              readTotal += r;
+                          }
+                          body = new String(buf, 0, readTotal, StandardCharsets.UTF_8);
+                      }
+
+                      if ("OPTIONS".equalsIgnoreCase(method)) {
+                          sendResponse(out, 204, "");
+                          return;
+                      }
+
+                      String path = fullPath.contains("?") ? fullPath.substring(0, fullPath.indexOf("?")) : fullPath;
+                      String queryStr = fullPath.contains("?") ? fullPath.substring(fullPath.indexOf("?") + 1) : "";
+
+                      if ("GET".equalsIgnoreCase(method) && (path.equals("/") || path.equals("/health") || path.equals("/diagnose"))) {
+                          String searxUrl = getQueryParam(queryStr, "searxng", DEFAULT_SEARXNG);
+                          JSONObject resp = new JSONObject();
+                          resp.put("ok", true);
+                          resp.put("service", "LUX-Ω Android Native Iceberg Bridge v5.4");
+                          JSONObject bridge = new JSONObject();
+                          bridge.put("status", "ON");
+                          bridge.put("endpoint", "http://127.0.0.1:" + port);
+                          resp.put("bridge", bridge);
+                          JSONObject proxies = new JSONObject();
+                          proxies.put("tor_socks5h", checkTcpPort(TOR_HOST, TOR_PORT));
+                          proxies.put("i2pd_http", checkTcpPort(I2P_HOST, I2P_PORT));
+                          proxies.put("searxng", checkSearxng(searxUrl));
+                          resp.put("proxies", proxies);
+                          sendResponse(out, 200, resp.toString());
+                          return;
+                      }
+
+                      if ("POST".equalsIgnoreCase(method) && path.equals("/search")) {
+                          JSONObject reqJson = body.isEmpty() ? new JSONObject() : new JSONObject(body);
+                          String q = reqJson.optString("query", "").trim();
+                          if (q.isEmpty()) {
+                              sendResponse(out, 400, "{\"ok\":false,\"error\":\"Parâmetro 'query' obrigatório.\"}");
+                              return;
+                          }
+                          String searxUrl = reqJson.optString("searxng_url", DEFAULT_SEARXNG);
+                          sendResponse(out, 200, runIcebergSearch(q, searxUrl).toString());
+                          return;
+                      }
+
+                      if ("POST".equalsIgnoreCase(method) && path.equals("/inspect")) {
+                          JSONObject reqJson = body.isEmpty() ? new JSONObject() : new JSONObject(body);
+                          String targetUrl = reqJson.optString("url", "").trim();
+                          if (targetUrl.isEmpty()) {
+                              sendResponse(out, 400, "{\"ok\":false,\"error\":\"Parâmetro 'url' obrigatório.\"}");
+                              return;
+                          }
+                          sendResponse(out, 200, runOsintInspect(targetUrl).toString());
+                          return;
+                      }
+
+                      sendResponse(out, 404, "{\"ok\":false,\"error\":\"Rota não encontrada\"}");
+                  } catch (Exception ignored) {}
+              }
+
+              private String readLine(InputStream in) throws IOException {
+                  ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                  int b;
+                  while ((b = in.read()) != -1) {
+                      if (b == '\r') {
+                          in.mark(1);
+                          int next = in.read();
+                          if (next != '\n' && next != -1) in.reset();
+                          break;
+                      }
+                      if (b == '\n') break;
+                      baos.write(b);
+                  }
+                  if (b == -1 && baos.size() == 0) return null;
+                  return baos.toString("UTF-8");
+              }
+
+              private void sendResponse(OutputStream out, int status, String jsonBody) throws IOException {
+                  byte[] bytes = jsonBody.getBytes(StandardCharsets.UTF_8);
+                  String statusText = status == 200 ? "OK" : (status == 204 ? "No Content" : "Error");
+                  String headers = "HTTP/1.1 " + status + " " + statusText + "\r\n" +
+                          "Access-Control-Allow-Origin: *\r\n" +
+                          "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n" +
+                          "Access-Control-Allow-Headers: Content-Type, Authorization\r\n" +
+                          "Content-Type: application/json; charset=utf-8\r\n" +
+                          "Content-Length: " + bytes.length + "\r\n" +
+                          "Connection: close\r\n\r\n";
+                  out.write(headers.getBytes(StandardCharsets.UTF_8));
+                  if (bytes.length > 0) out.write(bytes);
+                  out.flush();
+              }
+
+              private String getQueryParam(String query, String key, String defVal) {
+                  if (query == null || query.isEmpty()) return defVal;
+                  for (String pair : query.split("&")) {
+                      String[] kv = pair.split("=", 2);
+                      if (kv.length == 2 && kv[0].equals(key)) {
+                          try { return URLDecoder.decode(kv[1], "UTF-8"); } catch (Exception ignored) {}
+                      }
+                  }
+                  return defVal;
+              }
+
+              private JSONObject checkTcpPort(String host, int p) {
+                  JSONObject res = new JSONObject();
+                  long start = System.nanoTime();
+                  try (Socket s = new Socket()) {
+                      s.connect(new InetSocketAddress(host, p), 1500);
+                      double ms = Math.round((System.nanoTime() - start) / 100000.0) / 10.0;
+                      res.put("status", "ON");
+                      res.put("host", host + ":" + p);
+                      res.put("latency_ms", ms);
+                  } catch (Exception e) {
+                      try {
+                          res.put("status", "OFF");
+                          res.put("host", host + ":" + p);
+                          res.put("error", e.getMessage());
+                      } catch (Exception ignored) {}
+                  }
+                  return res;
+              }
+
+              private JSONObject checkSearxng(String searxUrl) {
+                  JSONObject res = new JSONObject();
+                  long start = System.nanoTime();
+                  try {
+                      String target = searxUrl.replaceAll("/+$", "") + "/search?q=test&format=json";
+                      HttpURLConnection conn = (HttpURLConnection) new URL(target).openConnection();
+                      conn.setConnectTimeout(2500);
+                      conn.setReadTimeout(2500);
+                      conn.setRequestProperty("User-Agent", "LUX-Omega-Android/5.4");
+                      int code = conn.getResponseCode();
+                      double ms = Math.round((System.nanoTime() - start) / 100000.0) / 10.0;
+                      res.put("status", code == 200 ? "ON" : "OFF");
+                      res.put("url", searxUrl);
+                      res.put("latency_ms", ms);
+                  } catch (Exception e) {
+                      try {
+                          res.put("status", "OFF");
+                          res.put("url", searxUrl);
+                          res.put("error", e.getMessage());
+                      } catch (Exception ignored) {}
+                  }
+                  return res;
+              }
+
+              private String classifyLayer(String url, String engine) {
+                  String low = url == null ? "" : url.toLowerCase();
+                  if (low.contains(".onion")) return "Darknet Overlay (Tor .onion)";
+                  if (low.contains(".i2p")) return "Darknet Overlay (I2Pd .i2p)";
+                  String[] markers = {"pastebin", "archive.org", "github.com", "gitlab", "shodan", "censys", "crt.sh", "reddit", "intelx"};
+                  for (String m : markers) {
+                      if (low.contains(m)) return "Deep Web / Indexadores";
+                  }
+                  if (engine != null && (engine.equalsIgnoreCase("ahmia") || engine.equalsIgnoreCase("torch"))) {
+                      return "Deep Web / Indexadores";
+                  }
+                  return "Surface Web";
+              }
+
+              private JSONObject runIcebergSearch(String query, String searxUrl) throws Exception {
+                  long start = System.nanoTime();
+                  List<Callable<List<JSONObject>>> tasks = new ArrayList<>();
+                  tasks.add(() -> searchSearxng(query, searxUrl));
+                  tasks.add(() -> searchDuckDuckGo(query));
+                  tasks.add(() -> searchWikipedia(query, "pt"));
+                  tasks.add(() -> searchWikipedia(query, "en"));
+
+                  List<Future<List<JSONObject>>> futures = pool.invokeAll(tasks);
+                  Set<String> seen = new HashSet<>();
+                  JSONArray allResults = new JSONArray();
+                  Map<String, JSONArray> layers = new LinkedHashMap<>();
+                  layers.put("Surface Web", new JSONArray());
+                  layers.put("Deep Web / Indexadores", new JSONArray());
+                  layers.put("Darknet Overlay (Tor .onion)", new JSONArray());
+                  layers.put("Darknet Overlay (I2Pd .i2p)", new JSONArray());
+
+                  for (Future<List<JSONObject>> f : futures) {
+                      try {
+                          for (JSONObject item : f.get()) {
+                              String u = item.optString("url", "");
+                              if (u.isEmpty() || seen.contains(u)) continue;
+                              seen.add(u);
+                              allResults.put(item);
+                              String l = item.optString("layer", "Surface Web");
+                              if (!layers.containsKey(l)) layers.put(l, new JSONArray());
+                              layers.get(l).put(item);
+                          }
+                      } catch (Exception ignored) {}
+                  }
+
+                  JSONObject byLayer = new JSONObject();
+                  for (Map.Entry<String, JSONArray> entry : layers.entrySet()) {
+                      byLayer.put(entry.getKey(), entry.getValue());
+                  }
+
+                  double elapsedMs = Math.round((System.nanoTime() - start) / 100000.0) / 10.0;
+                  JSONObject out = new JSONObject();
+                  out.put("ok", true);
+                  out.put("query", query);
+                  out.put("elapsed_ms", elapsedMs);
+                  out.put("total_results", allResults.length());
+                  out.put("by_layer", byLayer);
+                  out.put("results", allResults);
+                  return out;
+              }
+
+              private List<JSONObject> searchSearxng(String query, String searxUrl) {
+                  List<JSON
