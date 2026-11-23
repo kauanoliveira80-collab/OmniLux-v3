@@ -1,4 +1,4 @@
-name: Build LUX-Omega v5.4 APK
+name: Build LUX-Omega v8.0 Omnipotent APK
 
 on:
   push:
@@ -9,533 +9,1259 @@ jobs:
   build-apk:
     runs-on: ubuntu-latest
     steps:
-      - name: Criar estrutura do projeto
+      - name: Criar estrutura LUX-Omega v8.0 Omnipotent
         run: |
-          mkdir -p app/src/main/java/com/luxomega/iceberg app/src/main/assets
+          mkdir -p app/src/main/java/com/luxomega/iceberg app/src/main/assets app/src/main/res/xml
 
           cat << 'EOF' > settings.gradle
-          rootProject.name = "LUX-Omega-v5.4"
-          include(":app")
-          EOF
+rootProject.name = "LUX-Omega-v8.0"
+include(":app")
+EOF
 
           cat << 'EOF' > build.gradle
-          buildscript {
-            repositories { google(); mavenCentral() }
-            dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
-          }
-          allprojects { repositories { google(); mavenCentral() } }
-          EOF
+buildscript {
+  repositories { google(); mavenCentral() }
+  dependencies { classpath 'com.android.tools.build:gradle:8.2.2' }
+}
+allprojects { repositories { google(); mavenCentral() } }
+EOF
 
           cat << 'EOF' > app/build.gradle
-          plugins { id 'com.android.application' }
-          android {
-            namespace 'com.luxomega.iceberg'
-            compileSdk 34
-            defaultConfig {
-              applicationId "com.luxomega.iceberg"
-              minSdk 24
-              targetSdk 34
-              versionCode 54
-              versionName "5.4"
-            }
-            compileOptions {
-              sourceCompatibility JavaVersion.VERSION_17
-              targetCompatibility JavaVersion.VERSION_17
-            }
-          }
-          EOF
+plugins { id 'com.android.application' }
+android {
+  namespace 'com.luxomega.iceberg'
+  compileSdk 34
+  defaultConfig {
+    applicationId "com.luxomega.iceberg"
+    minSdk 24
+    targetSdk 34
+    versionCode 80
+    versionName "8.0"
+  }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+}
+EOF
+
+          cat << 'EOF' > app/src/main/res/xml/accessibility_config.xml
+<?xml version="1.0" encoding="utf-8"?>
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+  android:accessibilityEventTypes="typeAllMask"
+  android:accessibilityFeedbackType="feedbackGeneric"
+  android:accessibilityFlags="flagDefault|flagRetrieveInteractiveWindows|flagReportViewIds"
+  android:canRetrieveWindowContent="true"
+  android:canPerformGestures="true"
+  android:notificationTimeout="100" />
+EOF
 
           cat << 'EOF' > app/src/main/AndroidManifest.xml
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            <uses-permission android:name="android.permission.INTERNET" />
-            <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-            <application android:label="LUX-Ω v5.4" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-              <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden" android:windowSoftInputMode="adjustResize">
-                <intent-filter>
-                  <action android:name="android.intent.action.MAIN" />
-                  <category android:name="android.intent.category.LAUNCHER" />
-                </intent-filter>
-              </activity>
-            </application>
-          </manifest>
-          EOF
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+  <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+  <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+  <application android:label="LUX-Ω v8.0" android:usesCleartextTraffic="true" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+    <activity android:name=".MainActivity" android:exported="true" android:configChanges="orientation|screenSize|keyboardHidden" android:windowSoftInputMode="adjustResize">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity>
+    <service android:name=".LuxAccessibilityService"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+      android:exported="true">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibility_config" />
+    </service>
+  </application>
+</manifest>
+EOF
+
+          cat << 'EOF' > app/src/main/java/com/luxomega/iceberg/LuxAccessibilityService.java
+package com.luxomega.iceberg;
+import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.GestureDescription;
+import android.content.Intent;
+import android.content.pm.ApplicationInfo;
+import android.content.pm.PackageManager;
+import android.graphics.Path;
+import android.graphics.Rect;
+import android.os.Bundle;
+import android.view.accessibility.AccessibilityEvent;
+import android.view.accessibility.AccessibilityNodeInfo;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import java.util.List;
+
+public class LuxAccessibilityService extends AccessibilityService {
+  public static volatile LuxAccessibilityService instance;
+
+  @Override public void onServiceConnected() { super.onServiceConnected(); instance = this; }
+  @Override public void onAccessibilityEvent(AccessibilityEvent event) {}
+  @Override public void onInterrupt() {}
+  @Override public boolean onUnbind(Intent intent) { instance = null; return super.onUnbind(intent); }
+
+  public JSONObject dumpScreen() {
+    JSONObject out = new JSONObject();
+    JSONArray nodes = new JSONArray();
+    try {
+      AccessibilityNodeInfo root = getRootInActiveWindow();
+      if (root == null) return out.put("ok", false).put("error", "Tela inacessível.");
+      out.put("package", root.getPackageName() != null ? root.getPackageName().toString() : "");
+      collectNodes(root, nodes, 0);
+      out.put("ok", true).put("elements", nodes);
+    } catch (Exception e) {
+      try { out.put("ok", false).put("error", e.getMessage()); } catch (Exception ignored) {}
+    }
+    return out;
+  }
+
+  private void collectNodes(AccessibilityNodeInfo node, JSONArray arr, int depth) {
+    if (node == null || depth > 14 || arr.length() >= 80) return;
+    CharSequence txt = node.getText();
+    CharSequence desc = node.getContentDescription();
+    boolean clickable = node.isClickable();
+    boolean editable = node.isEditable();
+    if ((txt != null && txt.length() > 0) || (desc != null && desc.length() > 0) || clickable || editable) {
+      try {
+        JSONObject item = new JSONObject();
+        if (txt != null) item.put("text", txt.toString());
+        if (desc != null) item.put("desc", desc.toString());
+        item.put("clickable", clickable);
+        item.put("editable", editable);
+        Rect r = new Rect();
+        node.getBoundsInScreen(r);
+        item.put("center_x", r.centerX());
+        item.put("center_y", r.centerY());
+        arr.put(item);
+      } catch (Exception ignored) {}
+    }
+    for (int i = 0; i < node.getChildCount(); i++) collectNodes(node.getChild(i), arr, depth + 1);
+  }
+
+  public boolean clickByText(String query) {
+    AccessibilityNodeInfo root = getRootInActiveWindow();
+    if (root == null) return false;
+    return findAndClick(root, query.toLowerCase());
+  }
+
+  private boolean findAndClick(AccessibilityNodeInfo node, String q) {
+    if (node == null) return false;
+    String t = node.getText() != null ? node.getText().toString().toLowerCase() : "";
+    String d = node.getContentDescription() != null ? node.getContentDescription().toString().toLowerCase() : "";
+    if ((!t.isEmpty() && t.contains(q)) || (!d.isEmpty() && d.contains(q))) {
+      AccessibilityNodeInfo target = node;
+      while (target != null && !target.isClickable()) target = target.getParent();
+      if (target != null && target.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true;
+      Rect r = new Rect();
+      node.getBoundsInScreen(r);
+      return tapCoords(r.centerX(), r.centerY());
+    }
+    for (int i = 0; i < node.getChildCount(); i++) {
+      if (findAndClick(node.getChild(i), q)) return true;
+    }
+    return false;
+  }
+
+  public boolean typeIntoFocusedOrEditable(String text) {
+    AccessibilityNodeInfo root = getRootInActiveWindow();
+    if (root == null) return false;
+    AccessibilityNodeInfo focused = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT);
+    if (focused != null && focused.isEditable()) {
+      Bundle args = new Bundle();
+      args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+      return focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+    }
+    return findAndType(root, text);
+  }
+
+  private boolean findAndType(AccessibilityNodeInfo node, String text) {
+    if (node == null) return false;
+    if (node.isEditable()) {
+      Bundle args = new Bundle();
+      args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text);
+      return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args);
+    }
+    for (int i = 0; i < node.getChildCount(); i++) {
+      if (findAndType(node.getChild(i), text)) return true;
+    }
+    return false;
+  }
+
+  public boolean tapCoords(float x, float y) {
+    Path p = new Path();
+    p.moveTo(x, y);
+    GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(p, 0, 60);
+    return dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+  }
+
+  public boolean swipeScreen(String dir) {
+    Path p = new Path();
+    if ("up".equalsIgnoreCase(dir)) { p.moveTo(540, 500); p.lineTo(540, 1600); }
+    else { p.moveTo(540, 1600); p.lineTo(540, 500); }
+    GestureDescription.StrokeDescription stroke = new GestureDescription.StrokeDescription(p, 0, 280);
+    return dispatchGesture(new GestureDescription.Builder().addStroke(stroke).build(), null, null);
+  }
+
+  public boolean launchAppByName(String appQuery) {
+    PackageManager pm = getPackageManager();
+    String q = appQuery.toLowerCase().trim();
+    List<ApplicationInfo> apps = pm.getInstalledApplications(0);
+    for (ApplicationInfo info : apps) {
+      String label = pm.getApplicationLabel(info).toString().toLowerCase();
+      if (label.contains(q) || info.packageName.toLowerCase().contains(q)) {
+        Intent launch = pm.getLaunchIntentForPackage(info.packageName);
+        if (launch != null) {
+          launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+          startActivity(launch);
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+}
+EOF
 
           cat << 'EOF' > app/src/main/java/com/luxomega/iceberg/MainActivity.java
-          package com.luxomega.iceberg;
-          import android.annotation.SuppressLint;
-          import android.app.Activity;
-          import android.graphics.Color;
-          import android.os.Bundle;
-          import android.webkit.*;
+package com.luxomega.iceberg;
+import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.graphics.Color;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.Settings;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
+import android.view.Gravity;
+import android.view.View;
+import android.webkit.*;
+import android.widget.Button;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import java.util.ArrayList;
+import java.util.Locale;
 
-          public class MainActivity extends Activity {
-            private WebView webView;
-            private IcebergBridgeServer bridge;
+public class MainActivity extends Activity {
+  private WebView webView;
+  private WebView colabWebView;
+  private LinearLayout colabOverlay;
+  private IcebergBridgeServer bridge;
+  private ValueCallback<Uri[]> filePathCallback;
+  private SpeechRecognizer speechRecognizer;
+  private TextToSpeech tts;
+  private volatile boolean callModeActive = false;
 
-            @SuppressLint("SetJavaScriptEnabled")
-            @Override
-            protected void onCreate(Bundle savedInstanceState) {
-              super.onCreate(savedInstanceState);
-              bridge = new IcebergBridgeServer(8765);
-              bridge.start();
-              webView = new WebView(this);
-              webView.setBackgroundColor(Color.parseColor("#070b14"));
-              WebSettings s = webView.getSettings();
-              s.setJavaScriptEnabled(true);
-              s.setDomStorageEnabled(true);
-              s.setAllowFileAccess(true);
-              s.setAllowFileAccessFromFileURLs(true);
-              s.setAllowUniversalAccessFromFileURLs(true);
-              s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-              webView.setWebViewClient(new WebViewClient());
-              webView.setWebChromeClient(new WebChromeClient());
-              setContentView(webView);
-              webView.loadUrl("file:///android_asset/index.html");
-            }
-            @Override protected void onDestroy() {
-              if (bridge != null) bridge.stopServer();
-              super.onDestroy();
-            }
-          }
-          EOF
+  @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+  @Override
+  protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    bridge = new IcebergBridgeServer(8765);
+    bridge.start();
+
+    CookieManager.getInstance().setAcceptCookie(true);
+    initVoiceEngine();
+
+    FrameLayout root = new FrameLayout(this);
+    root.setBackgroundColor(Color.parseColor("#070b14"));
+
+    webView = new WebView(this);
+    webView.setBackgroundColor(Color.parseColor("#070b14"));
+    WebSettings s = webView.getSettings();
+    s.setJavaScriptEnabled(true);
+    s.setDomStorageEnabled(true);
+    s.setAllowFileAccess(true);
+    s.setAllowFileAccessFromFileURLs(true);
+    s.setAllowUniversalAccessFromFileURLs(true);
+    s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+    webView.addJavascriptInterface(new LuxNativeBridge(), "AndroidBridge");
+
+    webView.setWebViewClient(new WebViewClient() {
+      @Override
+      public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+        String u = request.getUrl().toString();
+        if (u.contains("colab.research.google.com")) {
+          openColabOverlay(u, true);
+          return true;
+        }
+        return false;
+      }
+    });
+
+    webView.setWebChromeClient(new WebChromeClient() {
+      @Override
+      public boolean onShowFileChooser(WebView wv, ValueCallback<Uri[]> cb, FileChooserParams params) {
+        if (filePathCallback != null) filePathCallback.onReceiveValue(null);
+        filePathCallback = cb;
+        Intent i = new Intent(Intent.ACTION_GET_CONTENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("*/*");
+        i.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{"image/*", "audio/*", "video/*", "application/pdf", "text/*"});
+        startActivityForResult(Intent.createChooser(i, "Selecionar Arquivo ou Mídia"), 1001);
+        return true;
+      }
+    });
+
+    colabOverlay = new LinearLayout(this);
+    colabOverlay.setOrientation(LinearLayout.VERTICAL);
+    colabOverlay.setBackgroundColor(Color.parseColor("#0b1220"));
+    colabOverlay.setVisibility(View.GONE);
+
+    LinearLayout topBar = new LinearLayout(this);
+    topBar.setOrientation(LinearLayout.HORIZONTAL);
+    topBar.setPadding(24, 18, 24, 18);
+    topBar.setGravity(Gravity.CENTER_VERTICAL);
+    topBar.setBackgroundColor(Color.parseColor("#111827"));
+
+    TextView title = new TextView(this);
+    title.setText("⚡ Auto-Ativando GPU Colab...");
+    title.setTextColor(Color.parseColor("#38bdf8"));
+    title.setTextSize(14f);
+    title.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+    Button closeBtn = new Button(this);
+    closeBtn.setText("Minimizar ✕");
+    closeBtn.setTextColor(Color.WHITE);
+    closeBtn.setBackgroundColor(Color.parseColor("#334155"));
+    closeBtn.setOnClickListener(v -> colabOverlay.setVisibility(View.GONE));
+
+    topBar.addView(title);
+    topBar.addView(closeBtn);
+
+    colabWebView = new WebView(this);
+    WebSettings cs = colabWebView.getSettings();
+    cs.setJavaScriptEnabled(true);
+    cs.setDomStorageEnabled(true);
+    cs.setDatabaseEnabled(true);
+    cs.setUserAgentString("Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+    CookieManager.getInstance().setAcceptThirdPartyCookies(colabWebView, true);
+
+    colabWebView.setWebViewClient(new WebViewClient() {
+      @Override
+      public void onPageFinished(WebView view, String url) {
+        if (url != null && url.contains("colab.research.google.com")) {
+          String autoRunJs =
+            "(function(){" +
+            "  if(window.__luxAutoRan) return;" +
+            "  function queryDeep(root, sel){" +
+            "    if(!root) return null;" +
+            "    const direct = root.querySelector(sel);" +
+            "    if(direct) return direct;" +
+            "    const all = root.querySelectorAll('*');" +
+            "    for(const el of all){" +
+            "      if(el.shadowRoot){" +
+            "        const found = queryDeep(el.shadowRoot, sel);" +
+            "        if(found) return found;" +
+            "      }" +
+            "    }" +
+            "    return null;" +
+            "  }" +
+            "  let tries = 0;" +
+            "  const iv = setInterval(()=>{" +
+            "    tries++;" +
+            "    try {" +
+            "      const okBtn = queryDeep(document, 'md-text-button[dialogaction=\"ok\"], mwc-button[dialogaction=\"ok\"], #ok, button[id=\"ok\"]');" +
+            "      if(okBtn) okBtn.click();" +
+            "      const runBtn = queryDeep(document, 'colab-run-button');" +
+            "      if(runBtn && runBtn.shadowRoot){" +
+            "        const inner = runBtn.shadowRoot.querySelector('#run-button');" +
+            "        if(inner && !runBtn.hasAttribute('running')){" +
+            "          inner.click();" +
+            "          window.__luxAutoRan = true;" +
+            "        }" +
+            "      }" +
+            "      if(!window.__luxAutoRan){" +
+            "        document.dispatchEvent(new KeyboardEvent('keydown', {key:'F9', code:'F9', keyCode:123, which:123, ctrlKey:true, bubbles:true}));" +
+            "      }" +
+            "    } catch(e) {}" +
+            "    if(window.__luxAutoRan || tries > 22) clearInterval(iv);" +
+            "  }, 1500);" +
+            "})();";
+          view.evaluateJavascript(autoRunJs, null);
+        }
+      }
+    });
+
+    colabOverlay.addView(topBar, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+    colabOverlay.addView(colabWebView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT));
+
+    root.addView(webView, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+    root.addView(colabOverlay, new FrameLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+
+    setContentView(root);
+    webView.loadUrl("file:///android_asset/index.html");
+  }
+
+  private void initVoiceEngine() {
+    tts = new TextToSpeech(this, status -> {
+      if (status == TextToSpeech.SUCCESS) {
+        tts.setLanguage(new Locale("pt", "BR"));
+        tts.setSpeechRate(1.08f);
+        tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+          @Override public void onStart(String id) {}
+          @Override public void onError(String id) { if (callModeActive) runOnUiThread(() -> listenOnce()); }
+          @Override public void onDone(String id) { if (callModeActive) runOnUiThread(() -> listenOnce()); }
+        });
+      }
+    });
+  }
+
+  private void listenOnce() {
+    if (!callModeActive) return;
+    if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+      requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 2002);
+      return;
+    }
+    if (speechRecognizer != null) speechRecognizer.destroy();
+    speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+    speechRecognizer.setRecognitionListener(new RecognitionListener() {
+      @Override public void onReadyForSpeech(Bundle b) { evalJs("window.LUX_ON_VOICE_STATE && window.LUX_ON_VOICE_STATE('listening')"); }
+      @Override public void onBeginningOfSpeech() {}
+      @Override public void onRmsChanged(float v) {}
+      @Override public void onBufferReceived(byte[] b) {}
+      @Override public void onEndOfSpeech() { evalJs("window.LUX_ON_VOICE_STATE && window.LUX_ON_VOICE_STATE('thinking')"); }
+      @Override public void onError(int err) { if (callModeActive) webView.postDelayed(() -> listenOnce(), 900); }
+      @Override public void onPartialResults(Bundle b) {}
+      @Override public void onEvent(int t, Bundle b) {}
+      @Override public void onResults(Bundle results) {
+        ArrayList<String> list = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        if (list != null && !list.isEmpty()) {
+          String said = list.get(0).replace("\\", "\\\\").replace("'", "\\'");
+          evalJs("window.LUX_ON_VOICE_TEXT && window.LUX_ON_VOICE_TEXT('" + said + "')");
+        } else if (callModeActive) {
+          listenOnce();
+        }
+      }
+    });
+    Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+    intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR");
+    speechRecognizer.startListening(intent);
+  }
+
+  private void evalJs(String js) { runOnUiThread(() -> webView.evaluateJavascript(js, null)); }
+
+  private void openColabOverlay(String url, boolean autoRun) {
+    runOnUiThread(() -> {
+      colabOverlay.setVisibility(View.VISIBLE);
+      colabWebView.evaluateJavascript("window.__luxAutoRan = false;", null);
+      String cur = colabWebView.getUrl();
+      if (cur == null || !cur.equals(url)) colabWebView.loadUrl(url);
+      else if (autoRun) colabWebView.reload();
+    });
+  }
+
+  public class LuxNativeBridge {
+    @JavascriptInterface public void wakeColab(String url) { openColabOverlay(url, true); }
+    @JavascriptInterface public void hideColab() { runOnUiThread(() -> colabOverlay.setVisibility(View.GONE)); }
+    @JavascriptInterface public void openAccessibilitySettings() {
+      startActivity(new Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+    }
+    @JavascriptInterface public boolean isAccessibilityEnabled() { return LuxAccessibilityService.instance != null; }
+    @JavascriptInterface public void startVoiceCall() { callModeActive = true; runOnUiThread(() -> listenOnce()); }
+    @JavascriptInterface public void stopVoiceCall() {
+      callModeActive = false;
+      runOnUiThread(() -> {
+        if (speechRecognizer != null) speechRecognizer.cancel();
+        if (tts != null) tts.stop();
+        evalJs("window.LUX_ON_VOICE_STATE && window.LUX_ON_VOICE_STATE('off')");
+      });
+    }
+    @JavascriptInterface public void speakText(String text) {
+      if (tts != null) {
+        String clean = text.replaceAll("[*#`_~]", "").trim();
+        if (clean.length() > 600) clean = clean.substring(0, 600);
+        tts.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "lux_utt");
+      }
+    }
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+    if (req == 2002 && res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED && callModeActive) listenOnce();
+  }
+
+  @Override
+  protected void onActivityResult(int req, int res, Intent data) {
+    if (req == 1001 && filePathCallback != null) {
+      Uri[] results = (res == RESULT_OK && data != null && data.getData() != null) ? new Uri[]{data.getData()} : null;
+      filePathCallback.onReceiveValue(results);
+      filePathCallback = null;
+    }
+  }
+
+  @Override
+  public void onBackPressed() {
+    if (colabOverlay != null && colabOverlay.getVisibility() == View.VISIBLE) {
+      colabOverlay.setVisibility(View.GONE);
+      return;
+    }
+    super.onBackPressed();
+  }
+
+  @Override protected void onDestroy() {
+    callModeActive = false;
+    if (speechRecognizer != null) speechRecognizer.destroy();
+    if (tts != null) tts.shutdown();
+    if (bridge != null) bridge.stopServer();
+    super.onDestroy();
+  }
+}
+EOF
 
           cat << 'EOF' > app/src/main/java/com/luxomega/iceberg/IcebergBridgeServer.java
-          package com.luxomega.iceberg;
-          import org.json.*;
-          import java.io.*;
-          import java.net.*;
-          import java.nio.charset.StandardCharsets;
-          import java.util.*;
-          import java.util.concurrent.*;
-          import java.util.regex.*;
-          import javax.net.ssl.*;
+package com.luxomega.iceberg;
+import android.accessibilityservice.AccessibilityService;
+import org.json.*;
+import java.io.*;
+import java.net.*;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.*;
+import java.util.regex.*;
+import javax.net.ssl.*;
 
-          public class IcebergBridgeServer extends Thread {
-            private final int port;
-            private volatile boolean running = true;
-            private ServerSocket ss;
-            private final ExecutorService pool = Executors.newCachedThreadPool();
+public class IcebergBridgeServer extends Thread {
+  private final int port;
+  private volatile boolean running = true;
+  private ServerSocket ss;
+  private final ExecutorService pool = Executors.newCachedThreadPool();
 
-            public IcebergBridgeServer(int port) { this.port = port; setDaemon(true); }
-            public void stopServer() { running = false; try { if (ss != null) ss.close(); } catch (Exception ignored) {} pool.shutdownNow(); }
+  public IcebergBridgeServer(int port) { this.port = port; setDaemon(true); }
+  public void stopServer() { running = false; try { if (ss != null) ss.close(); } catch (Exception ignored) {} pool.shutdownNow(); }
 
-            @Override public void run() {
-              try {
-                ss = new ServerSocket();
-                ss.setReuseAddress(true);
-                ss.bind(new InetSocketAddress("127.0.0.1", port));
-                while (running) { Socket c = ss.accept(); pool.submit(() -> handle(c)); }
-              } catch (Exception ignored) {}
-            }
+  @Override public void run() {
+    try {
+      ss = new ServerSocket();
+      ss.setReuseAddress(true);
+      ss.bind(new InetSocketAddress("127.0.0.1", port));
+      while (running) { Socket c = ss.accept(); pool.submit(() -> handle(c)); }
+    } catch (Exception ignored) {}
+  }
 
-            private void handle(Socket c) {
-              try (Socket s = c; InputStream in = new BufferedInputStream(s.getInputStream()); OutputStream out = s.getOutputStream()) {
-                String reqLine = readLine(in);
-                if (reqLine == null || reqLine.isEmpty()) return;
-                String[] p = reqLine.split(" ");
-                String method = p[0], fullPath = p.length > 1 ? p[1] : "/";
-                int len = 0; String line;
-                while ((line = readLine(in)) != null && !line.isEmpty()) {
-                  if (line.toLowerCase().startsWith("content-length:")) len = Integer.parseInt(line.substring(15).trim());
-                }
-                String body = "";
-                if (len > 0) {
-                  byte[] b = new byte[len]; int off = 0;
-                  while (off < len) { int r = in.read(b, off, len - off); if (r == -1) break; off += r; }
-                  body = new String(b, 0, off, StandardCharsets.UTF_8);
-                }
-                if ("OPTIONS".equalsIgnoreCase(method)) { send(out, 204, ""); return; }
-                String path = fullPath.contains("?") ? fullPath.substring(0, fullPath.indexOf("?")) : fullPath;
+  private void handle(Socket c) {
+    try (Socket s = c; InputStream in = new BufferedInputStream(s.getInputStream()); OutputStream out = s.getOutputStream()) {
+      String reqLine = readLine(in);
+      if (reqLine == null || reqLine.isEmpty()) return;
+      String[] p = reqLine.split(" ");
+      String method = p[0], fullPath = p.length > 1 ? p[1] : "/";
+      int len = 0; String line;
+      while ((line = readLine(in)) != null && !line.isEmpty()) {
+        if (line.toLowerCase().startsWith("content-length:")) len = Integer.parseInt(line.substring(15).trim());
+      }
+      String body = "";
+      if (len > 0) {
+        byte[] b = new byte[len]; int off = 0;
+        while (off < len) { int r = in.read(b, off, len - off); if (r == -1) break; off += r; }
+        body = new String(b, 0, off, StandardCharsets.UTF_8);
+      }
+      if ("OPTIONS".equalsIgnoreCase(method)) { send(out, 204, ""); return; }
+      String path = fullPath.contains("?") ? fullPath.substring(0, fullPath.indexOf("?")) : fullPath;
 
-                if ("GET".equalsIgnoreCase(method) && (path.equals("/") || path.equals("/health"))) {
-                  JSONObject r = new JSONObject();
-                  r.put("ok", true);
-                  r.put("bridge", new JSONObject().put("status", "ON"));
-                  JSONObject px = new JSONObject();
-                  px.put("tor_socks5h", checkPort("127.0.0.1", 9050));
-                  px.put("i2pd_http", checkPort("127.0.0.1", 4444));
-                  px.put("searxng", checkPort("127.0.0.1", 8888));
-                  r.put("proxies", px);
-                  send(out, 200, r.toString()); return;
-                }
-                if ("POST".equalsIgnoreCase(method) && path.equals("/search")) {
-                  String q = new JSONObject(body).optString("query", "").trim();
-                  send(out, 200, searchAll(q).toString()); return;
-                }
-                if ("POST".equalsIgnoreCase(method) && path.equals("/inspect")) {
-                  String u = new JSONObject(body).optString("url", "").trim();
-                  send(out, 200, inspectUrl(u).toString()); return;
-                }
-                send(out, 404, "{\"ok\":false}");
-              } catch (Exception ignored) {}
-            }
+      if ("GET".equalsIgnoreCase(method) && (path.equals("/") || path.equals("/health"))) {
+        JSONObject r = new JSONObject();
+        r.put("ok", true);
+        r.put("version", "8.0-omnipotent");
+        r.put("accessibility", LuxAccessibilityService.instance != null ? "ON" : "OFF");
+        JSONObject px = new JSONObject();
+        px.put("tor_socks5h", checkPort("127.0.0.1", 9050));
+        px.put("i2pd_http", checkPort("127.0.0.1", 4444));
+        r.put("proxies", px);
+        send(out, 200, r.toString()); return;
+      }
+      if ("GET".equalsIgnoreCase(method) && path.equals("/phone/screen")) {
+        if (LuxAccessibilityService.instance == null) {
+          send(out, 200, "{\"ok\":false,\"error\":\"Ative Acessibilidade em Config 2B\"}");
+        } else {
+          send(out, 200, LuxAccessibilityService.instance.dumpScreen().toString());
+        }
+        return;
+      }
+      if ("POST".equalsIgnoreCase(method) && path.equals("/phone/action")) {
+        send(out, 200, handlePhoneAction(new JSONObject(body)).toString()); return;
+      }
+      if ("POST".equalsIgnoreCase(method) && path.equals("/search")) {
+        send(out, 200, searchAll(new JSONObject(body).optString("query", "").trim()).toString()); return;
+      }
+      if ("POST".equalsIgnoreCase(method) && path.equals("/inspect")) {
+        send(out, 200, inspectUrl(new JSONObject(body).optString("url", "").trim()).toString()); return;
+      }
+      if ("POST".equalsIgnoreCase(method) && path.equals("/llm/cloud")) {
+        send(out, 200, askCloudLlm(new JSONObject(body)).toString()); return;
+      }
+      if ("POST".equalsIgnoreCase(method) && path.equals("/media/cloud")) {
+        send(out, 200, generateCloudMedia(new JSONObject(body)).toString()); return;
+      }
+      if ("POST".equalsIgnoreCase(method) && path.equals("/colab/sync")) {
+        send(out, 200, discoverColabUrl(new JSONObject(body).optString("channel", "lux-omega-kauan-v55")).toString()); return;
+      }
+      if ("POST".equalsIgnoreCase(method) && path.equals("/colab/proxy")) {
+        JSONObject req = new JSONObject(body);
+        String colabUrl = req.optString("colab_url", "").replaceAll("/+$", "");
+        String endpoint = req.optString("endpoint", "/run");
+        String payload = req.optJSONObject("payload") != null ? req.getJSONObject("payload").toString() : "{}";
+        if (colabUrl.isEmpty()) {
+          send(out, 200, new JSONObject().put("ok", false).put("wake_required", true).put("error", "Colab dormindo.").toString());
+          return;
+        }
+        try {
+          send(out, 200, postHttp(colabUrl + endpoint, payload, null, 240000));
+        } catch (Exception e) {
+          send(out, 200, new JSONObject().put("ok", false).put("wake_required", true).put("error", "Colab offline: " + e.getMessage()).toString());
+        }
+        return;
+      }
+      send(out, 404, "{\"ok\":false}");
+    } catch (Exception ignored) {}
+  }
 
-            private String readLine(InputStream in) throws IOException {
-              ByteArrayOutputStream b = new ByteArrayOutputStream(); int ch;
-              while ((ch = in.read()) != -1) {
-                if (ch == '\r') { in.mark(1); if (in.read() != '\n') in.reset(); break; }
-                if (ch == '\n') break; b.write(ch);
-              }
-              return (ch == -1 && b.size() == 0) ? null : b.toString("UTF-8");
-            }
+  private JSONObject handlePhoneAction(JSONObject req) {
+    JSONObject out = new JSONObject();
+    try {
+      LuxAccessibilityService svc = LuxAccessibilityService.instance;
+      if (svc == null) return out.put("ok", false).put("error", "Serviço de Acessibilidade desativado.");
+      String act = req.optString("action", "");
+      String val = req.optString("value", "");
+      boolean ok = false;
+      if ("open_app".equals(act)) ok = svc.launchAppByName(val);
+      else if ("click_text".equals(act)) ok = svc.clickByText(val);
+      else if ("type_text".equals(act)) ok = svc.typeIntoFocusedOrEditable(val);
+      else if ("swipe".equals(act)) ok = svc.swipeScreen(val);
+      else if ("back".equals(act)) ok = svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_BACK);
+      else if ("home".equals(act)) ok = svc.performGlobalAction(AccessibilityService.GLOBAL_ACTION_HOME);
+      return out.put("ok", ok).put("action", act).put("value", val);
+    } catch (Exception e) {
+      try { return out.put("ok", false).put("error", e.getMessage()); } catch (Exception ignored) { return out; }
+    }
+  }
 
-            private void send(OutputStream out, int st, String json) throws IOException {
-              byte[] d = json.getBytes(StandardCharsets.UTF_8);
-              String h = "HTTP/1.1 " + st + " OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET,POST,OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: " + d.length + "\r\nConnection: close\r\n\r\n";
-              out.write(h.getBytes(StandardCharsets.UTF_8));
-              if (d.length > 0) out.write(d);
-              out.flush();
-            }
+  private JSONObject askCloudLlm(JSONObject req) {
+    JSONObject out = new JSONObject();
+    try {
+      String prompt = req.optString("prompt", "").trim();
+      String apiKey = req.optString("api_key", "").trim();
+      String provider = req.optString("provider", "pollinations").toLowerCase();
+      if (apiKey.isEmpty() || provider.equals("pollinations")) {
+        String raw = getHttp("https://text.pollinations.ai/" + URLEncoder.encode(prompt, "UTF-8") + "?model=openai-large", null);
+        return out.put("ok", true).put("provider", "Cloud LLM (Grátis)").put("text", raw);
+      }
+      String url = provider.equals("groq") ? "https://api.groq.com/openai/v1/chat/completions" : "https://openrouter.ai/api/v1/chat/completions";
+      String model = provider.equals("groq") ? "llama-3.3-70b-versatile" : "deepseek/deepseek-r1:free";
+      JSONObject msg = new JSONObject().put("role", "user").put("content", prompt);
+      JSONObject body = new JSONObject().put("model", model).put("messages", new JSONArray().put(msg));
+      String res = postHttp(url, body.toString(), "Bearer " + apiKey, 30000);
+      String txt = new JSONObject(res).getJSONArray("choices").getJSONObject(0).getJSONObject("message").getString("content");
+      return out.put("ok", true).put("provider", provider.toUpperCase() + " (" + model + ")").put("text", txt);
+    } catch (Exception e) {
+      try { return out.put("ok", false).put("error", e.getMessage()); } catch (Exception ignored) { return out; }
+    }
+  }
 
-            private JSONObject checkPort(String h, int p) {
-              JSONObject j = new JSONObject(); long t = System.nanoTime();
-              try (Socket s = new Socket()) {
-                s.connect(new InetSocketAddress(h, p), 1200);
-                j.put("status", "ON"); j.put("latency_ms", Math.round((System.nanoTime() - t) / 100000.0) / 10.0);
-              } catch (Exception e) { try { j.put("status", "OFF"); } catch (Exception ignored) {} }
-              return j;
-            }
+  private JSONObject discoverColabUrl(String channel) {
+    JSONObject out = new JSONObject();
+    try {
+      String raw = getHttp("https://ntfy.sh/" + URLEncoder.encode(channel, "UTF-8") + "/json?poll=1&since=12h", null);
+      String found = "";
+      for (String line : raw.split("\n")) {
+        if (line.trim().isEmpty()) continue;
+        String m = new JSONObject(line).optString("message", "").trim();
+        if (m.startsWith("https://") && m.contains("trycloudflare.com")) found = m;
+      }
+      if (!found.isEmpty() && getHttp(found + "/health", null).contains("\"ok\":true")) {
+        return out.put("ok", true).put("url", found);
+      }
+      return out.put("ok", false).put("wake_required", true);
+    } catch (Exception e) {
+      try { return out.put("ok", false).put("wake_required", true); } catch (Exception ignored) { return out; }
+    }
+  }
 
-            private JSONObject searchAll(String q) throws Exception {
-              long t = System.nanoTime();
-              JSONArray ddg = new JSONArray(), wiki = new JSONArray();
-              try {
-                String raw = getHttp("https://html.duckduckgo.com/html/?q=" + URLEncoder.encode(q, "UTF-8"), null);
-                Matcher m = Pattern.compile("<a[^>]+class=\"result__a\"[^>]+href=\"([^\"]+)\"[^>]*>(.*?)</a>", Pattern.DOTALL).matcher(raw);
-                while (m.find() && ddg.length() < 6) {
-                  String href = m.group(1);
-                  if (href.contains("uddg=")) { int i = href.indexOf("uddg=") + 5, e = href.indexOf("&", i); href = URLDecoder.decode(e > 0 ? href.substring(i, e) : href.substring(i), "UTF-8"); }
-                  ddg.put(new JSONObject().put("title", clean(m.group(2))).put("url", href).put("source", "DuckDuckGo"));
-                }
-              } catch (Exception ignored) {}
-              try {
-                String raw = getHttp("https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + URLEncoder.encode(q, "UTF-8") + "&srlimit=3&format=json", null);
-                JSONArray arr = new JSONObject(raw).getJSONObject("query").getJSONArray("search");
-                for (int i = 0; i < arr.length(); i++) {
-                  String title = arr.getJSONObject(i).optString("title");
-                  wiki.put(new JSONObject().put("title", title + " (Wikipedia)").put("url", "https://pt.wikipedia.org/wiki/" + URLEncoder.encode(title.replace(" ", "_"), "UTF-8")).put("source", "Wikipedia"));
-                }
-              } catch (Exception ignored) {}
-              JSONObject layers = new JSONObject().put("Surface Web", ddg).put("Enciclopédia / OSINT", wiki);
-              return new JSONObject().put("ok", true).put("total_results", ddg.length() + wiki.length()).put("elapsed_ms", Math.round((System.nanoTime() - t) / 100000.0) / 10.0).put("by_layer", layers);
-            }
+  private JSONObject generateCloudMedia(JSONObject req) {
+    JSONObject out = new JSONObject();
+    try {
+      String provider = req.optString("provider", "pollinations").toLowerCase();
+      String prompt = req.optString("prompt", "").trim();
+      String apiKey = req.optString("api_key", "").trim();
+      String mode = req.optString("mode", "image");
+      if (provider.equals("pollinations") || apiKey.isEmpty()) {
+        String imgUrl = "https://image.pollinations.ai/prompt/" + URLEncoder.encode(prompt, "UTF-8") + "?model=flux&width=1280&height=720&nologo=true&seed=" + (System.currentTimeMillis() % 99999);
+        return out.put("ok", true).put("type", "image").put("provider", "Flux HD (Grátis)").put("url", imgUrl);
+      }
+      if (provider.equals("fal")) {
+        String model = mode.equals("video") ? "fal-ai/kling-video/v2/master/text-to-video" : "fal-ai/flux-pro/v1.1";
+        String res = postHttp("https://queue.fal.run/" + model, new JSONObject().put("prompt", prompt).toString(), "Key " + apiKey, 30000);
+        JSONObject j = new JSONObject(res);
+        String url = j.has("video") ? j.getJSONObject("video").optString("url", "") : (j.has("images") ? j.getJSONArray("images").getJSONObject(0).optString("url", "") : "");
+        return out.put("ok", true).put("type", mode).put("provider", "Fal.ai Pro").put("url", url);
+      }
+      return out.put("ok", false).put("error", "Provedor inválido.");
+    } catch (Exception e) {
+      try { return out.put("ok", false).put("error", e.getMessage()); } catch (Exception ignored) { return out; }
+    }
+  }
 
-            private JSONObject inspectUrl(String u) {
-              if (!u.matches("(?i)^https?://.*")) u = "http://" + u;
-              String route = "Surface / Direto";
-              try {
-                URL parsed = new URL(u);
-                String host = parsed.getHost().toLowerCase();
-                String html; int code = 200;
-                if (host.endsWith(".onion")) {
-                  route = "Tor SOCKS5h (Orbot 127.0.0.1:9050)";
-                  html = fetchSocks5h(parsed);
-                } else if (host.endsWith(".i2p")) {
-                  route = "I2Pd HTTP (127.0.0.1:4444)";
-                  html = getHttp(u, new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 4444)));
-                } else {
-                  html = getHttp(u, null);
-                }
-                Matcher tm = Pattern.compile("<title[^>]*>(.*?)</title>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html);
-                String title = tm.find() ? clean(tm.group(1)) : "";
-                String txt = clean(html.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " "));
-                if (txt.length() > 4000) txt = txt.substring(0, 4000);
-                return new JSONObject().put("ok", true).put("url", u).put("route", route).put("status_code", code).put("title", title).put("clean_text", txt);
-              } catch (Exception e) {
-                try { return new JSONObject().put("ok", false).put("url", u).put("route", route).put("error", e.getMessage()); } catch (Exception ignored) { return new JSONObject(); }
-              }
-            }
+  private String readLine(InputStream in) throws IOException {
+    ByteArrayOutputStream b = new ByteArrayOutputStream(); int ch;
+    while ((ch = in.read()) != -1) {
+      if (ch == '\r') { in.mark(1); if (in.read() != '\n') in.reset(); break; }
+      if (ch == '\n') break; b.write(ch);
+    }
+    return (ch == -1 && b.size() == 0) ? null : b.toString("UTF-8");
+  }
 
-            private String getHttp(String u, Proxy p) throws IOException {
-              URL url = new URL(u);
-              HttpURLConnection c = (HttpURLConnection) (p != null ? url.openConnection(p) : url.openConnection());
-              c.setConnectTimeout(15000); c.setReadTimeout(15000);
-              c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) LUX-Omega/5.4");
-              InputStream is = c.getResponseCode() >= 400 ? c.getErrorStream() : c.getInputStream();
-              return is == null ? "" : readAll(is);
-            }
+  private void send(OutputStream out, int st, String json) throws IOException {
+    byte[] d = json.getBytes(StandardCharsets.UTF_8);
+    String h = "HTTP/1.1 " + st + " OK\r\nAccess-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET,POST,OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type,Authorization\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: " + d.length + "\r\nConnection: close\r\n\r\n";
+    out.write(h.getBytes(StandardCharsets.UTF_8));
+    if (d.length > 0) out.write(d);
+    out.flush();
+  }
 
-            private String fetchSocks5h(URL url) throws Exception {
-              String host = url.getHost();
-              boolean ssl = "https".equalsIgnoreCase(url.getProtocol());
-              int port = url.getPort() != -1 ? url.getPort() : (ssl ? 443 : 80);
-              String path = (url.getPath() == null || url.getPath().isEmpty()) ? "/" : url.getPath();
-              if (url.getQuery() != null) path += "?" + url.getQuery();
-              Socket s = new Socket(); s.connect(new InetSocketAddress("127.0.0.1", 9050), 10000); s.setSoTimeout(25000);
-              OutputStream out = s.getOutputStream(); InputStream in = s.getInputStream();
-              out.write(new byte[]{5, 1, 0}); out.flush();
-              byte[] g = new byte[2]; readFully(in, g);
-              byte[] hb = host.getBytes(StandardCharsets.UTF_8);
-              ByteArrayOutputStream req = new ByteArrayOutputStream();
-              req.write(5); req.write(1); req.write(0); req.write(3); req.write(hb.length); req.write(hb);
-              req.write((port >> 8) & 0xFF); req.write(port & 0xFF);
-              out.write(req.toByteArray()); out.flush();
-              byte[] rep = new byte[4]; readFully(in, rep);
-              if (rep[1] != 0) { s.close(); throw new IOException("Erro Orbot SOCKS5: " + rep[1]); }
-              if (rep[3] == 1) readFully(in, new byte[6]);
-              else if (rep[3] == 3) readFully(in, new byte[in.read() + 2]);
-              else if (rep[3] == 4) readFully(in, new byte[18]);
-              Socket act = ssl ? ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(s, host, port, true) : s;
-              if (ssl) ((SSLSocket) act).startHandshake();
-              String http = "GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n";
-              act.getOutputStream().write(http.getBytes(StandardCharsets.UTF_8));
-              String raw = readAll(act.getInputStream()); act.close();
-              int idx = raw.indexOf("\r\n\r\n");
-              return idx > 0 ? raw.substring(idx + 4) : raw;
-            }
+  private JSONObject checkPort(String h, int p) {
+    JSONObject j = new JSONObject(); long t = System.nanoTime();
+    try (Socket s = new Socket()) {
+      s.connect(new InetSocketAddress(h, p), 1200);
+      j.put("status", "ON"); j.put("latency_ms", Math.round((System.nanoTime() - t) / 100000.0) / 10.0);
+    } catch (Exception e) { try { j.put("status", "OFF"); } catch (Exception ignored) {} }
+    return j;
+  }
 
-            private void readFully(InputStream in, byte[] b) throws IOException { int o = 0; while (o < b.length) { int r = in.read(b, o, b.length - o); if (r == -1) throw new IOException("EOF"); o += r; } }
-            private String readAll(InputStream in) throws IOException { ByteArrayOutputStream b = new ByteArrayOutputStream(); byte[] buf = new byte[4096]; int r; while ((r = in.read(buf)) != -1) b.write(buf, 0, r); return b.toString("UTF-8"); }
-            private String clean(String s) { return s == null ? "" : s.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim(); }
-          }
-          EOF
+  private JSONObject searchAll(String q) throws Exception {
+    long t = System.nanoTime();
+    JSONArray ddg = new JSONArray(), wiki = new JSONArray();
+    try {
+      String raw = getHttp("https://html.duckduckgo.com/html/?q=" + URLEncoder.encode(q, "UTF-8"), null);
+      Matcher m = Pattern.compile("<a[^>]+class=\"result__a\"[^>]+href=\"([^\"]+)\"[^>]*>(.*?)</a>", Pattern.DOTALL).matcher(raw);
+      while (m.find() && ddg.length() < 6) {
+        String href = m.group(1);
+        if (href.contains("uddg=")) { int i = href.indexOf("uddg=") + 5, e = href.indexOf("&", i); href = URLDecoder.decode(e > 0 ? href.substring(i, e) : href.substring(i), "UTF-8"); }
+        ddg.put(new JSONObject().put("title", clean(m.group(2))).put("url", href).put("source", "DuckDuckGo"));
+      }
+    } catch (Exception ignored) {}
+    try {
+      String raw = getHttp("https://pt.wikipedia.org/w/api.php?action=query&list=search&srsearch=" + URLEncoder.encode(q, "UTF-8") + "&srlimit=3&format=json", null);
+      JSONArray arr = new JSONObject(raw).getJSONObject("query").getJSONArray("search");
+      for (int i = 0; i < arr.length(); i++) {
+        String title = arr.getJSONObject(i).optString("title");
+        wiki.put(new JSONObject().put("title", title + " (Wikipedia)").put("url", "https://pt.wikipedia.org/wiki/" + URLEncoder.encode(title.replace(" ", "_"), "UTF-8")).put("source", "Wikipedia"));
+      }
+    } catch (Exception ignored) {}
+    JSONObject layers = new JSONObject().put("Surface Web", ddg).put("Enciclopédia / OSINT", wiki);
+    return new JSONObject().put("ok", true).put("total_results", ddg.length() + wiki.length()).put("elapsed_ms", Math.round((System.nanoTime() - t) / 100000.0) / 10.0).put("by_layer", layers);
+  }
+
+  private JSONObject inspectUrl(String u) {
+    if (!u.matches("(?i)^https?://.*")) u = "http://" + u;
+    String route = "Surface / Direto";
+    try {
+      URL parsed = new URL(u);
+      String host = parsed.getHost().toLowerCase();
+      String html;
+      if (host.endsWith(".onion")) { route = "Tor SOCKS5h (Orbot 127.0.0.1:9050)"; html = fetchSocks5h(parsed); }
+      else if (host.endsWith(".i2p")) { route = "I2Pd HTTP (127.0.0.1:4444)"; html = getHttp(u, new Proxy(Proxy.Type.HTTP, new InetSocketAddress("127.0.0.1", 4444))); }
+      else { html = getHttp(u, null); }
+      Matcher tm = Pattern.compile("<title[^>]*>(.*?)</title>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL).matcher(html);
+      String title = tm.find() ? clean(tm.group(1)) : "";
+      String txt = clean(html.replaceAll("(?is)<(script|style)[^>]*>.*?</\\1>", " "));
+      if (txt.length() > 4000) txt = txt.substring(0, 4000);
+      return new JSONObject().put("ok", true).put("url", u).put("route", route).put("status_code", 200).put("title", title).put("clean_text", txt);
+    } catch (Exception e) {
+      try { return new JSONObject().put("ok", false).put("url", u).put("route", route).put("error", e.getMessage()); } catch (Exception ignored) { return new JSONObject(); }
+    }
+  }
+
+  private String getHttp(String u, Proxy p) throws IOException {
+    URL url = new URL(u);
+    HttpURLConnection c = (HttpURLConnection) (p != null ? url.openConnection(p) : url.openConnection());
+    c.setConnectTimeout(15000); c.setReadTimeout(20000);
+    c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) LUX-Omega/8.0");
+    InputStream is = c.getResponseCode() >= 400 ? c.getErrorStream() : c.getInputStream();
+    return is == null ? "" : readAll(is);
+  }
+
+  private String postHttp(String u, String jsonBody, String authHeader, int timeout) throws IOException {
+    HttpURLConnection c = (HttpURLConnection) new URL(u).openConnection();
+    c.setRequestMethod("POST"); c.setDoOutput(true);
+    c.setConnectTimeout(timeout); c.setReadTimeout(timeout);
+    c.setRequestProperty("Content-Type", "application/json");
+    if (authHeader != null && !authHeader.isEmpty()) c.setRequestProperty("Authorization", authHeader);
+    c.getOutputStream().write(jsonBody.getBytes(StandardCharsets.UTF_8));
+    InputStream is = c.getResponseCode() >= 400 ? c.getErrorStream() : c.getInputStream();
+    return is == null ? "" : readAll(is);
+  }
+
+  private String fetchSocks5h(URL url) throws Exception {
+    String host = url.getHost();
+    boolean ssl = "https".equalsIgnoreCase(url.getProtocol());
+    int port = url.getPort() != -1 ? url.getPort() : (ssl ? 443 : 80);
+    String path = (url.getPath() == null || url.getPath().isEmpty()) ? "/" : url.getPath();
+    if (url.getQuery() != null) path += "?" + url.getQuery();
+    Socket s = new Socket(); s.connect(new InetSocketAddress("127.0.0.1", 9050), 10000); s.setSoTimeout(25000);
+    OutputStream out = s.getOutputStream(); InputStream in = s.getInputStream();
+    out.write(new byte[]{5, 1, 0}); out.flush();
+    byte[] g = new byte[2]; readFully(in, g);
+    byte[] hb = host.getBytes(StandardCharsets.UTF_8);
+    ByteArrayOutputStream req = new ByteArrayOutputStream();
+    req.write(5); req.write(1); req.write(0); req.write(3); req.write(hb.length); req.write(hb);
+    req.write((port >> 8) & 0xFF); req.write(port & 0xFF);
+    out.write(req.toByteArray()); out.flush();
+    byte[] rep = new byte[4]; readFully(in, rep);
+    if (rep[1] != 0) { s.close(); throw new IOException("Erro Orbot SOCKS5: " + rep[1]); }
+    if (rep[3] == 1) readFully(in, new byte[6]);
+    else if (rep[3] == 3) readFully(in, new byte[in.read() + 2]);
+    else if (rep[3] == 4) readFully(in, new byte[18]);
+    Socket act = ssl ? ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(s, host, port, true) : s;
+    if (ssl) ((SSLSocket) act).startHandshake();
+    String http = "GET " + path + " HTTP/1.1\r\nHost: " + host + "\r\nUser-Agent: Mozilla/5.0\r\nConnection: close\r\n\r\n";
+    act.getOutputStream().write(http.getBytes(StandardCharsets.UTF_8));
+    String raw = readAll(act.getInputStream()); act.close();
+    int idx = raw.indexOf("\r\n\r\n");
+    return idx > 0 ? raw.substring(idx + 4) : raw;
+  }
+
+  private void readFully(InputStream in, byte[] b) throws IOException { int o = 0; while (o < b.length) { int r = in.read(b, o, b.length - o); if (r == -1) throw new IOException("EOF"); o += r; } }
+  private String readAll(InputStream in) throws IOException { ByteArrayOutputStream b = new ByteArrayOutputStream(); byte[] buf = new byte[4096]; int r; while ((r = in.read(buf)) != -1) b.write(buf, 0, r); return b.toString("UTF-8"); }
+  private String clean(String s) { return s == null ? "" : s.replaceAll("<[^>]+>", " ").replaceAll("\\s+", " ").trim(); }
+}
+EOF
 
           cat << 'EOF' > app/src/main/assets/index.html
-          <!DOCTYPE html>
-          <html lang="pt-BR">
-          <head>
-            <meta charset="UTF-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>LUX-Ω v5.4</title>
-            <style>
-              body{margin:0;background:#070b14;color:#e2e8f0;font-family:sans-serif;display:flex;flex-direction:column;min-height:100vh}
-              header{background:#0b1220;border-bottom:1px solid #1e3a5f;padding:14px;display:flex;justify-content:space-between;align-items:center}
-              main{flex:1;padding:14px}
-              .box{background:#0d1422;border:1px solid #1e3a5f;border-radius:10px;padding:12px;font-size:13px;line-height:1.5}
-              .bar{display:flex;gap:8px;padding:10px;background:#0b1220;border-top:1px solid #1e3a5f;position:sticky;bottom:0}
-              input{flex:1;background:#070b14;border:1px solid #334155;color:#fff;padding:10px;border-radius:8px}
-              button{background:#0891b2;color:#fff;border:none;padding:0 16px;border-radius:8px;font-weight:bold}
-            </style>
-          </head>
-          <body>
-            <header><strong style="color:#22d3ee">🧊 LUX-Ω (v5.4) Mobile</strong><span style="font-size:11px;color:#34d399">Bridge 8765 ON</span></header>
-            <main id="chat">
-              <div class="box">
-                <b style="color:#38bdf8">Pronto para testar!</b><br>
-                1. Ligue o <b>Orbot</b> (porta <code>9050</code>) para sites <code>.onion</code>.<br>
-                2. Toque em <b>⚙ Config 2B</b> para testar os proxies.<br>
-                3. Digite: <code>pesquisar iceberg sua busca</code> ou <code>acessar onion link.onion</code>.
-              </div>
-            </main>
-            <div class="bar"><input id="q" placeholder="pesquisar iceberg ... ou acessar onion ..." /><button id="go">Enviar</button></div>
-            <script src="./lux_iceberg_addon.js"></script>
-            <script>
-              document.getElementById("go").onclick = async () => {
-                const el = document.getElementById("q"), v = el.value.trim();
-                if (!v || !window.LUX_ICEBERG) return; el.value = "";
-                if (!(await window.LUX_ICEBERG.handleDirectChatCommand(v))) await window.LUX_ICEBERG.executeIcebergSearch(v);
-              };
-            </script>
-          </body>
-          </html>
-          EOF
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LUX-Ω v8.0 Omnipotent</title>
+  <style>
+    body{margin:0;background:#070b14;color:#e2e8f0;font-family:sans-serif;display:flex;flex-direction:column;min-height:100vh}
+    header{background:#0b1220;border-bottom:1px solid #1e3a5f;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:6px}
+    main{flex:1;padding:12px;padding-bottom:92px}
+    .box{background:#0d1422;border:1px solid #1e3a5f;border-radius:10px;padding:12px;font-size:12px;line-height:1.55}
+    .bar{display:flex;gap:6px;padding:10px;background:#0b1220;border-top:1px solid #1e3a5f;position:fixed;bottom:0;left:0;right:0;align-items:center}
+    input[type=text]{flex:1;background:#070b14;border:1px solid #334155;color:#fff;padding:10px;border-radius:8px;font-size:14px}
+    button.send{background:#0891b2;color:#fff;border:none;padding:10px 14px;border-radius:8px;font-weight:bold}
+    button.att{background:#1e293b;color:#38bdf8;border:1px solid #334155;padding:10px 11px;border-radius:8px;font-size:15px}
+    button.call{background:#059669;color:#fff;border:none;padding:5px 10px;border-radius:14px;font-size:11px;font-weight:bold}
+    #att-tag{display:none;position:fixed;bottom:56px;left:10px;background:#1e3a5f;color:#67e8f9;font-size:11px;padding:4px 10px;border-radius:12px;z-index:998}
+  </style>
+</head>
+<body>
+  <header>
+    <strong style="color:#22d3ee">⚡ LUX-Ω v8.0</strong>
+    <div style="display:flex;gap:6px;align-items:center">
+      <button class="call" id="call-btn">🎙️ Ligar</button>
+      <span id="colab-badge" style="font-size:11px;background:#1e293b;color:#94a3b8;padding:4px 8px;border-radius:10px">Colab: Stand-by</span>
+    </div>
+  </header>
+  <main id="chat">
+    <div class="box">
+      <b style="color:#34d399">📱 Agente Android & Chamada ao Vivo:</b><br>
+      • Toque em <b>🎙️ Ligar</b> para conversar por voz contínua em tempo real<br>
+      • <code>celular abra o WhatsApp e procure João</code> (controla qualquer app)<br>
+      <b style="color:#a78bfa">🎬 Vídeo Consistente, Foto 3D & Memória Drive:</b><br>
+      • <code>criar historia cena 1 | cena 2 | cena 3</code> (mesmo personagem)<br>
+      • Anexe <b>foto ou vídeo</b> em <b>📎</b> + <code>dublar Nome | Texto</code> (LivePortrait 3D + 1080p)<br>
+      • <code>memorizar &lt;texto/PDF&gt;</code> | <code>lembrar &lt;pergunta&gt;</code> | <code>gerar video gpu &lt;prompt&gt;</code>
+    </div>
+  </main>
+  <div id="att-tag"></div>
+  <div class="bar">
+    <input type="file" id="media-file" accept="image/*,audio/*,video/*,application/pdf,text/*" style="display:none" />
+    <button class="att" id="att-btn">📎</button>
+    <input type="text" id="q" placeholder="Peça ou fale qualquer coisa..." />
+    <button class="send" id="go">Enviar</button>
+  </div>
+  <script src="./lux_iceberg_addon.js"></script>
+  <script>
+    const mf = document.getElementById("media-file"), tag = document.getElementById("att-tag");
+    document.getElementById("att-btn").onclick = () => mf.click();
+    mf.onchange = () => {
+      if (mf.files && mf.files[0]) {
+        tag.style.display = "block";
+        tag.innerHTML = `📎 ${mf.files[0].name} <span onclick="document.getElementById('media-file').value='';this.parentElement.style.display='none'" style="margin-left:6px;color:#f87171;font-weight:bold">✕</span>`;
+      }
+    };
+    document.getElementById("go").onclick = async () => {
+      const el = document.getElementById("q"), v = el.value.trim();
+      if (!v || !window.LUX_ICEBERG) return; el.value = "";
+      const file = (mf.files && mf.files[0]) ? mf.files[0] : null;
+      if (!(await window.LUX_ICEBERG.handleDirectChatCommand(v, file))) await window.LUX_ICEBERG.askInstantLlm(v);
+    };
+  </script>
+</body>
+</html>
+EOF
 
           cat << 'EOF' > app/src/main/assets/lux_iceberg_addon.js
-          (function(){
-            const B = "http://127.0.0.1:8765";
-            async function api(p, opt){ const r = await fetch(B + p, { ...opt, headers: {"Content-Type":"application/json"} }); return await r.json(); }
-            function card(t, h){
-              const d = document.createElement("div");
-              d.style.cssText = "margin:10px 0;background:#0d1422;border:1px solid #1e3a5f;border-left:4px solid #06b6d4;border-radius:8px;padding:12px;font-size:13px";
-              d.innerHTML = `<div style="color:#22d3ee;font-weight:bold;margin-bottom:6px">🧊 ${t}</div>${h}`;
-              document.getElementById("chat").appendChild(d);
-            }
-            async function testProxies(){
-              try {
-                const d = await api("/health", {method:"GET"});
-                document.getElementById("st").innerText = `Bridge: ON | Tor(9050): ${d.proxies.tor_socks5h.status} | I2P: ${d.proxies.i2pd_http.status}`;
-              } catch(e){ document.getElementById("st").innerText = "Bridge: OFF"; }
-            }
-            async function executeIcebergSearch(q){
-              const d = await api("/search", {method:"POST", body:JSON.stringify({query:q})});
-              let h = `<div style="color:#94a3b8;margin-bottom:6px">${d.total_results} resultados (${d.elapsed_ms}ms)</div>`;
-              for (const [k, arr] of Object.entries(d.by_layer || {})) {
-                if (!arr.length) continue;
-                h += `<div style="color:#38bdf8;font-weight:bold;margin-top:6px">▸ ${", "http://127.0.0.1:" + port);
-                          resp.put("bridge", bridge);
-                          JSONObject proxies = new JSONObject();
-                          proxies.put("tor_socks5h", checkTcpPort(TOR_HOST, TOR_PORT));
-                          proxies.put("i2pd_http", checkTcpPort(I2P_HOST, I2P_PORT));
-                          proxies.put("searxng", checkSearxng(searxUrl));
-                          resp.put("proxies", proxies);
-                          sendResponse(out, 200, resp.toString());
-                          return;
-                      }
+(function(){
+  const B = "http://127.0.0.1:8765";
+  const st = {
+    colabUrl: localStorage.getItem("lux_colab_url") || "",
+    colabNotebook: localStorage.getItem("lux_colab_nb") || "https://colab.research.google.com/",
+    syncChannel: localStorage.getItem("lux_sync_ch") || "lux-omega-kauan-v55",
+    llmProvider: localStorage.getItem("lux_llm_prov") || "pollinations",
+    llmKey: localStorage.getItem("lux_llm_key") || "",
+    falKey: localStorage.getItem("lux_fal_key") || "",
+    voiceEngine: localStorage.getItem("lux_voice_eng") || "f5",
+    autoWake: localStorage.getItem("lux_autowake") !== "0",
+    inCall: false
+  };
+  let wakingTimer = null;
 
-                      if ("POST".equalsIgnoreCase(method) && path.equals("/search")) {
-                          JSONObject reqJson = body.isEmpty() ? new JSONObject() : new JSONObject(body);
-                          String q = reqJson.optString("query", "").trim();
-                          if (q.isEmpty()) {
-                              sendResponse(out, 400, "{\"ok\":false,\"error\":\"Parâmetro 'query' obrigatório.\"}");
-                              return;
-                          }
-                          String searxUrl = reqJson.optString("searxng_url", DEFAULT_SEARXNG);
-                          sendResponse(out, 200, runIcebergSearch(q, searxUrl).toString());
-                          return;
-                      }
+  async function api(p, opt){ const r = await fetch(B + p, { ...opt, headers: {"Content-Type":"application/json"} }); return await r.json(); }
 
-                      if ("POST".equalsIgnoreCase(method) && path.equals("/inspect")) {
-                          JSONObject reqJson = body.isEmpty() ? new JSONObject() : new JSONObject(body);
-                          String targetUrl = reqJson.optString("url", "").trim();
-                          if (targetUrl.isEmpty()) {
-                              sendResponse(out, 400, "{\"ok\":false,\"error\":\"Parâmetro 'url' obrigatório.\"}");
-                              return;
-                          }
-                          sendResponse(out, 200, runOsintInspect(targetUrl).toString());
-                          return;
-                      }
+  function card(t, h){
+    const d = document.createElement("div");
+    d.style.cssText = "margin:10px 0;background:#0d1422;border:1px solid #1e3a5f;border-left:4px solid #06b6d4;border-radius:8px;padding:12px;font-size:13px";
+    d.innerHTML = `<div style="color:#22d3ee;font-weight:bold;margin-bottom:6px">⚡ ${t}</div>${h}`;
+    document.getElementById("chat").appendChild(d);
+    window.scrollTo(0, document.body.scrollHeight);
+  }
 
-                      sendResponse(out, 404, "{\"ok\":false,\"error\":\"Rota não encontrada\"}");
-                  } catch (Exception ignored) {}
-              }
+  const callBtn = document.getElementById("call-btn");
+  if (callBtn) {
+    callBtn.onclick = () => {
+      if (!window.AndroidBridge) return;
+      if (!st.inCall) {
+        st.inCall = true;
+        callBtn.innerText = "🔴 Encerrar";
+        callBtn.style.background = "#dc2626";
+        window.AndroidBridge.startVoiceCall();
+      } else {
+        st.inCall = false;
+        callBtn.innerText = "🎙️ Ligar";
+        callBtn.style.background = "#059669";
+        window.AndroidBridge.stopVoiceCall();
+      }
+    };
+  }
 
-              private String readLine(InputStream in) throws IOException {
-                  ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                  int b;
-                  while ((b = in.read()) != -1) {
-                      if (b == '\r') {
-                          in.mark(1);
-                          int next = in.read();
-                          if (next != '\n' && next != -1) in.reset();
-                          break;
-                      }
-                      if (b == '\n') break;
-                      baos.write(b);
-                  }
-                  if (b == -1 && baos.size() == 0) return null;
-                  return baos.toString("UTF-8");
-              }
+  window.LUX_ON_VOICE_STATE = (state) => {
+    if (!callBtn || !st.inCall) return;
+    if (state === "listening") callBtn.innerText = "👂 Ouvindo...";
+    else if (state === "thinking") callBtn.innerText = "🧠 Pensando...";
+    else if (state === "off") { st.inCall = false; callBtn.innerText = "🎙️ Ligar"; callBtn.style.background = "#059669"; }
+  };
 
-              private void sendResponse(OutputStream out, int status, String jsonBody) throws IOException {
-                  byte[] bytes = jsonBody.getBytes(StandardCharsets.UTF_8);
-                  String statusText = status == 200 ? "OK" : (status == 204 ? "No Content" : "Error");
-                  String headers = "HTTP/1.1 " + status + " " + statusText + "\r\n" +
-                          "Access-Control-Allow-Origin: *\r\n" +
-                          "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n" +
-                          "Access-Control-Allow-Headers: Content-Type, Authorization\r\n" +
-                          "Content-Type: application/json; charset=utf-8\r\n" +
-                          "Content-Length: " + bytes.length + "\r\n" +
-                          "Connection: close\r\n\r\n";
-                  out.write(headers.getBytes(StandardCharsets.UTF_8));
-                  if (bytes.length > 0) out.write(bytes);
-                  out.flush();
-              }
+  window.LUX_ON_VOICE_TEXT = async (spoken) => {
+    card("🗣️ Você disse", `<i>"${spoken}"</i>`);
+    if (!(await handleDirectChatCommand(spoken, null))) {
+      await askInstantLlm(spoken, true);
+    }
+  };
 
-              private String getQueryParam(String query, String key, String defVal) {
-                  if (query == null || query.isEmpty()) return defVal;
-                  for (String pair : query.split("&")) {
-                      String[] kv = pair.split("=", 2);
-                      if (kv.length == 2 && kv[0].equals(key)) {
-                          try { return URLDecoder.decode(kv[1], "UTF-8"); } catch (Exception ignored) {}
-                      }
-                  }
-                  return defVal;
-              }
+  async function runPhoneAgent(goal){
+    if (window.AndroidBridge && !window.AndroidBridge.isAccessibilityEnabled()) {
+      card("🔐 Permissão Necessária", `Ative <b>LUX-Ω v8.0</b> nas configurações de Acessibilidade para controlar outros apps.<br><br><button onclick="window.AndroidBridge.openAccessibilitySettings()" style="background:#0284c7;color:#fff;border:none;padding:8px 12px;border-radius:6px">Abrir Acessibilidade Agora</button>`);
+      return;
+    }
+    card("📱 Agente Android Iniciado", `Objetivo: <b>${goal}</b>`);
+    for (let step = 1; step <= 6; step++) {
+      const scr = await api("/phone/screen", {method:"GET"});
+      if (!scr.ok) { card("Erro Tela", scr.error); return; }
+      const agentPrompt =
+        `Você é um agente autônomo controlando um celular Android. Objetivo: "${goal}".\n` +
+        `App atual: ${scr.package}. Elementos visíveis: ${JSON.stringify((scr.elements || []).slice(0, 45))}\n` +
+        `Responda APENAS um JSON válido sem markdown: {"action":"open_app|click_text|type_text|swipe|back|home|done","value":"texto ou nome do app","reason":"curto"}`;
+      const llm = await api("/llm/cloud", {method:"POST", body:JSON.stringify({prompt: agentPrompt, provider: st.llmProvider, api_key: st.llmKey})});
+      if (!llm.ok) { card("Erro Agente", llm.error); return; }
+      let cmd;
+      try {
+        const m = llm.text.match(/\{[\s\S]*\}/);
+        cmd = JSON.parse(m ? m[0] : llm.text);
+      } catch (e) { card("Falha Parse Agente", llm.text); return; }
 
-              private JSONObject checkTcpPort(String host, int p) {
-                  JSONObject res = new JSONObject();
-                  long start = System.nanoTime();
-                  try (Socket s = new Socket()) {
-                      s.connect(new InetSocketAddress(host, p), 1500);
-                      double ms = Math.round((System.nanoTime() - start) / 100000.0) / 10.0;
-                      res.put("status", "ON");
-                      res.put("host", host + ":" + p);
-                      res.put("latency_ms", ms);
-                  } catch (Exception e) {
-                      try {
-                          res.put("status", "OFF");
-                          res.put("host", host + ":" + p);
-                          res.put("error", e.getMessage());
-                      } catch (Exception ignored) {}
-                  }
-                  return res;
-              }
+      if (cmd.action === "done") {
+        card("✅ Tarefa Concluída no Celular", cmd.reason || "Ação finalizada.");
+        if (st.inCall && window.AndroidBridge) window.AndroidBridge.speakText(cmd.reason || "Pronto.");
+        return;
+      }
+      await api("/phone/action", {method:"POST", body:JSON.stringify({action: cmd.action, value: cmd.value || ""})});
+      await new Promise(r => setTimeout(r, 1400));
+    }
+    card("⏹️ Limite de Passos", "O agente executou 6 ações na tela.");
+  }
 
-              private JSONObject checkSearxng(String searxUrl) {
-                  JSONObject res = new JSONObject();
-                  long start = System.nanoTime();
-                  try {
-                      String target = searxUrl.replaceAll("/+$", "") + "/search?q=test&format=json";
-                      HttpURLConnection conn = (HttpURLConnection) new URL(target).openConnection();
-                      conn.setConnectTimeout(2500);
-                      conn.setReadTimeout(2500);
-                      conn.setRequestProperty("User-Agent", "LUX-Omega-Android/5.4");
-                      int code = conn.getResponseCode();
-                      double ms = Math.round((System.nanoTime() - start) / 100000.0) / 10.0;
-                      res.put("status", code == 200 ? "ON" : "OFF");
-                      res.put("url", searxUrl);
-                      res.put("latency_ms", ms);
-                  } catch (Exception e) {
-                      try {
-                          res.put("status", "OFF");
-                          res.put("url", searxUrl);
-                          res.put("error", e.getMessage());
-                      } catch (Exception ignored) {}
-                  }
-                  return res;
-              }
+  async function syncColab(){
+    const d = await api("/colab/sync", {method:"POST", body:JSON.stringify({channel: st.syncChannel})});
+    const badge = document.getElementById("colab-badge");
+    if (d.ok && d.url) {
+      st.colabUrl = d.url;
+      localStorage.setItem("lux_colab_url", d.url);
+      if (badge) { badge.innerText = "Colab GPU: ON"; badge.style.color = "#34d399"; }
+      return d.url;
+    }
+    if (badge) { badge.innerText = "Colab: Stand-by"; badge.style.color = "#94a3b8"; }
+    return "";
+  }
 
-              private String classifyLayer(String url, String engine) {
-                  String low = url == null ? "" : url.toLowerCase();
-                  if (low.contains(".onion")) return "Darknet Overlay (Tor .onion)";
-                  if (low.contains(".i2p")) return "Darknet Overlay (I2Pd .i2p)";
-                  String[] markers = {"pastebin", "archive.org", "github.com", "gitlab", "shodan", "censys", "crt.sh", "reddit", "intelx"};
-                  for (String m : markers) {
-                      if (low.contains(m)) return "Deep Web / Indexadores";
-                  }
-                  if (engine != null && (engine.equalsIgnoreCase("ahmia") || engine.equalsIgnoreCase("torch"))) {
-                      return "Deep Web / Indexadores";
-                  }
-                  return "Surface Web";
-              }
+  async function ensureColabAwake(taskFn){
+    if (st.colabUrl) {
+      try {
+        const h = await fetch(st.colabUrl.replace(/\/+$/, "") + "/health");
+        if (h.ok) return true;
+      } catch(e) { st.colabUrl = ""; }
+    }
+    const fresh = await syncColab();
+    if (fresh) return true;
 
-              private JSONObject runIcebergSearch(String query, String searxUrl) throws Exception {
-                  long start = System.nanoTime();
-                  List<Callable<List<JSONObject>>> tasks = new ArrayList<>();
-                  tasks.add(() -> searchSearxng(query, searxUrl));
-                  tasks.add(() -> searchDuckDuckGo(query));
-                  tasks.add(() -> searchWikipedia(query, "pt"));
-                  tasks.add(() -> searchWikipedia(query, "en"));
+    if (st.autoWake && window.AndroidBridge && st.colabNotebook.includes("colab.research.google.com")) {
+      card("🚀 Acordando Colab Automaticamente...", "Seu pedido entrou na fila e será executado assim que a GPU iniciar.");
+      window.AndroidBridge.wakeColab(st.colabNotebook);
+      if (wakingTimer) clearInterval(wakingTimer);
+      let attempts = 0;
+      wakingTimer = setInterval(async () => {
+        attempts++;
+        const url = await syncColab();
+        if (url) {
+          clearInterval(wakingTimer);
+          wakingTimer = null;
+          if (window.AndroidBridge) window.AndroidBridge.hideColab();
+          card("✅ GPU Conectada!", "Executando tarefa da fila...");
+          await taskFn();
+        } else if (attempts >= 40) {
+          clearInterval(wakingTimer);
+          wakingTimer = null;
+          card("⏳ Tempo Limite", "Verifique o login Google na janela interna do Colab e toque em Sincronizar.");
+        }
+      }, 4000);
+    } else {
+      card("⚡ Colab Hibernando", `<a href="${st.colabNotebook}" style="color:#38bdf8;font-weight:bold">Abrir Notebook Colab</a> e clique em Sincronizar.`);
+    }
+    return false;
+  }
 
-                  List<Future<List<JSONObject>>> futures = pool.invokeAll(tasks);
-                  Set<String> seen = new HashSet<>();
-                  JSONArray allResults = new JSONArray();
-                  Map<String, JSONArray> layers = new LinkedHashMap<>();
-                  layers.put("Surface Web", new JSONArray());
-                  layers.put("Deep Web / Indexadores", new JSONArray());
-                  layers.put("Darknet Overlay (Tor .onion)", new JSONArray());
-                  layers.put("Darknet Overlay (I2Pd .i2p)", new JSONArray());
+  async function runMemoryIngest(text, attachedFile){
+    if (!(await ensureColabAwake(() => runMemoryIngest(text, attachedFile)))) return;
+    card("🧠 Indexando na Memória do Google Drive...", attachedFile ? `Arquivo: <b>${attachedFile.name}</b>` : "Nota textual");
+    const fd = new FormData();
+    fd.append("text", text || "");
+    if (attachedFile) fd.append("file", attachedFile);
+    try {
+      const res = await fetch(st.colabUrl.replace(/\/+$/, "") + "/memory/ingest", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!d.ok) { card("Erro Memória", d.error); return; }
+      card("✅ Memória Atualizada no Drive", `Fonte: <b>${d.source}</b> • Blocos vetoriais: <b>${d.chunks_indexed}</b>`);
+    } catch (e) { st.colabUrl = ""; await ensureColabAwake(() => runMemoryIngest(text, attachedFile)); }
+  }
 
-                  for (Future<List<JSONObject>> f : futures) {
-                      try {
-                          for (JSONObject item : f.get()) {
-                              String u = item.optString("url", "");
-                              if (u.isEmpty() || seen.contains(u)) continue;
-                              seen.add(u);
-                              allResults.put(item);
-                              String l = item.optString("layer", "Surface Web");
-                              if (!layers.containsKey(l)) layers.put(l, new JSONArray());
-                              layers.get(l).put(item);
-                          }
-                      } catch (Exception ignored) {}
-                  }
+  async function runMemoryQuery(query){
+    if (!(await ensureColabAwake(() => runMemoryQuery(query)))) return;
+    card("🔍 Consultando Memória Persistente...", `<i>"${query}"</i>`);
+    const d = await api("/colab/proxy", {method:"POST", body:JSON.stringify({colab_url: st.colabUrl, endpoint: "/memory/query", payload: {query}})});
+    if (!d.ok) { card("Erro Consulta", d.error || "Falha na consulta."); return; }
+    let srcHtml = "";
+    (d.sources || []).forEach(s => {
+      srcHtml += `<div style="margin-top:6px;padding:6px;background:#070b14;border-radius:6px;font-size:11px;color:#94a3b8"><b style="color:#a78bfa">${s.source}</b> (${Math.round(s.score*100)}%): ${s.snippet}</div>`;
+    });
+    card("🧠 Resposta da Memória RAG", `<div style="white-space:pre-wrap;line-height:1.5">${d.answer}</div>${srcHtml}`);
+    if (st.inCall && window.AndroidBridge) window.AndroidBridge.speakText(d.answer);
+  }
 
-                  JSONObject byLayer = new JSONObject();
-                  for (Map.Entry<String, JSONArray> entry : layers.entrySet()) {
-                      byLayer.put(entry.getKey(), entry.getValue());
-                  }
+  async function askInstantLlm(prompt, speakOut){
+    const d = await api("/llm/cloud", {method:"POST", body:JSON.stringify({prompt, provider: st.llmProvider, api_key: st.llmKey})});
+    if (d.ok) {
+      card(`🧠 ${d.provider}`, `<div style="white-space:pre-wrap;line-height:1.5">${d.text}</div>`);
+      if ((speakOut || st.inCall) && window.AndroidBridge) window.AndroidBridge.speakText(d.text);
+    } else {
+      card("Erro IA Nuvem", d.error);
+    }
+  }
 
-                  double elapsedMs = Math.round((System.nanoTime() - start) / 100000.0) / 10.0;
-                  JSONObject out = new JSONObject();
-                  out.put("ok", true);
-                  out.put("query", query);
-                  out.put("elapsed_ms", elapsedMs);
-                  out.put("total_results", allResults.length());
-                  out.put("by_layer", byLayer);
-                  out.put("results", allResults);
-                  return out;
-              }
+  async function runVoiceClone(rawInput, attachedFile){
+    if (!(await ensureColabAwake(() => runVoiceClone(rawInput, attachedFile)))) return;
+    let text = rawInput, mediaUrl = "";
+    if (rawInput.includes("|")) { const p = rawInput.split("|"); mediaUrl = p[0].trim(); text = p.slice(1).join("|").trim(); }
+    if (!attachedFile && !mediaUrl) { card("Falta Mídia", "Toque em <b>📎</b> ou use <code>clonar voz URL | texto</code>"); return; }
+    card("🎙️ Estúdio de Voz...", `<i>"${text}"</i>`);
+    const fd = new FormData();
+    fd.append("text", text); fd.append("engine", st.voiceEngine); fd.append("media_url", mediaUrl);
+    if (attachedFile) fd.append("file", attachedFile);
+    try {
+      const res = await fetch(st.colabUrl.replace(/\/+$/, "") + "/voice_clone", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!d.ok) { card("Erro Voz", `<span style="color:#f87171">${d.error}</span>`); return; }
+      card("✅ Voz Masterizada", `<audio src="${d.url}" controls autoplay style="width:100%"></audio>`);
+    } catch (e) { st.colabUrl = ""; await ensureColabAwake(() => runVoiceClone(rawInput, attachedFile)); }
+  }
 
-              private List<JSONObject> searchSearxng(String query, String searxUrl) {
-                  List<JSON
+  async function runFaceSwap(targetName, attachedFile){
+    if (!(await ensureColabAwake(() => runFaceSwap(targetName, attachedFile)))) return;
+    if (!attachedFile) { card("Falta Mídia", "Toque em <b>📎</b> e anexe foto/vídeo antes de enviar."); return; }
+    card("🎭 Face Swap Multi-Ângulo HD", `Alvo: <b>${targetName}</b>`);
+    const fd = new FormData();
+    fd.append("target_name", targetName); fd.append("media_file", attachedFile);
+    try {
+      const res = await fetch(st.colabUrl.replace(/\/+$/, "") + "/face_swap", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!d.ok) { card("Erro Face Swap", `<span style="color:#f87171">${d.error}</span>`); return; }
+      if (d.type === "video") card("✅ Vídeo HD", `<video src="${d.url}" controls autoplay style="width:100%;border-radius:6px"></video>`);
+      else card("✅ Imagem HD", `<img src="${d.url}" style="width:100%;border-radius:6px"/>`);
+    } catch (e) { st.colabUrl = ""; await ensureColabAwake(() => runFaceSwap(targetName, attachedFile)); }
+  }
+
+  async function runDubVideo(targetName, text, attachedFile){
+    if (!(await ensureColabAwake(() => runDubVideo(targetName, text, attachedFile)))) return;
+    if (!attachedFile) { card("Falta Mídia", "Toque em <b>📎</b> e anexe o vídeo ou foto-retrato base."); return; }
+    card("🎬 Dublagem Studio 3D / 1080p", `Alvo: <b>${targetName}</b>`);
+    const fd = new FormData();
+    fd.append("target_name", targetName); fd.append("text", text); fd.append("video_file", attachedFile);
+    try {
+      const res = await fetch(st.colabUrl.replace(/\/+$/, "") + "/dub_video", { method: "POST", body: fd });
+      const d = await res.json();
+      if (!d.ok) { card("Erro Dublagem", `<span style="color:#f87171">${d.error}</span>`); return; }
+      card("✅ Vídeo Dublado 1080p", `<video src="${d.url}" controls autoplay style="width:100%;border-radius:6px"></video>`);
+    } catch (e) { st.colabUrl = ""; await ensureColabAwake(() => runDubVideo(targetName, text, attachedFile)); }
+  }
+
+  async function runColabTool(tool, params){
+    if (!(await ensureColabAwake(() => runColabTool(tool, params)))) return;
+    if (tool === "video_story") card("🎞️ Gerando História Encadeada Consistente...", "Renderizando cenas sequenciais com âncora visual...");
+    const d = await api("/colab/proxy", {method:"POST", body:JSON.stringify({colab_url: st.colabUrl, endpoint: "/run", payload: {tool, params}})});
+    if (!d.ok) { card("Erro GPU", d.error || "Falha na execução."); return; }
+    if (d.type === "video") card("🎬 Vídeo 1080p Finalizado", `<video src="${d.url}" controls autoplay style="width:100%;border-radius:6px"></video>`);
+    else card(`⚡ GPU (${tool})`, `<pre style="white-space:pre-wrap;background:#070b14;padding:8px;max-height:260px;overflow:auto">${d.text || d.clean_text || d.stdout || JSON.stringify(d, null, 2)}</pre>`);
+  }
+
+  async function runCloudMedia(mode, prompt){
+    const prov = (mode === "video" && st.falKey) ? "fal" : "pollinations";
+    const d = await api("/media/cloud", {method:"POST", body:JSON.stringify({provider: prov, api_key: st.falKey, mode, prompt})});
+    if (!d.ok) { card("Erro Mídia", d.error); return; }
+    if (d.type === "video") card(`🎬 ${d.provider}`, `<video src="${d.url}" controls autoplay style="width:100%;border-radius:6px"></video>`);
+    else card(`🎨 ${d.provider}`, `<img src="${d.url}" style="width:100%;border-radius:6px"/>`);
+  }
+
+  async function executeIcebergSearch(q){
+    const d = await api("/search", {method:"POST", body:JSON.stringify({query:q})});
+    let h = `<div style="color:#94a3b8;margin-bottom:6px">${d.total_results} resultados (${d.elapsed_ms}ms)</div>`;
+    for (const [k, arr] of Object.entries(d.by_layer || {})) {
+      if (!arr.length) continue;
+      h += `<div style="color:#38bdf8;font-weight:bold;margin-top:6px">▸ ${k}</div><ul>`;
+      arr.forEach(i => h += `<li><a href="${i.url}" style="color:#67e8f9">${i.title}</a></li>`);
+      h += `</ul>`;
+    }
+    card("Busca Multi-Camada", h);
+  }
+
+  async function executeOsintInspect(u){
+    const d = await api("/inspect", {method:"POST", body:JSON.stringify({url:u})});
+    if (!d.ok) { card("Erro OSINT", `<span style="color:#f87171">${d.route}: ${d.error}</span>`); return; }
+    card("Inspeção OSINT", `<b>Rota:</b> ${d.route}<br><b>Título:</b> ${d.title}<pre style="white-space:pre-wrap;background:#070b14;padding:8px;max-height:200px;overflow:auto">${d.clean_text}</pre>`);
+  }
+
+  async function handleDirectChatCommand(t, file){
+    let m;
+    if ((m = t.match(/^(?:celular|android|abrir\s+app)\s+(.+)$/i))) { await runPhoneAgent(m[1]); return true; }
+    if ((m = t.match(/^(?:criar\s+historia|video\s+longo|historia\s+video)\s+(.+)$/i))) { await runColabTool("video_story", {prompt: m[1]}); return true; }
+    if (/^memorizar$/i.test(t) && file) { await runMemoryIngest("", file); return true; }
+    if ((m = t.match(/^(?:memorizar|salvar\s+na\s+memoria)\s+(.+)$/i))) { await runMemoryIngest(m[1], file); return true; }
+    if ((m = t.match(/^(?:lembrar|consultar\s+memoria|buscar\s+na\s+memoria)\s+(.+)$/i))) { await runMemoryQuery(m[1]); return true; }
+    if ((m = t.match(/^(?:dublar|trocar\s+rosto\s+e\s+falar)\s+([^|]+)\|\s*(.+)$/i))) { await runDubVideo(m[1].trim(), m[2].trim(), file); return true; }
+    if ((m = t.match(/^(?:clonar\s+voz|copiar\s+voz)\s+(.+)$/i))) { await runVoiceClone(m[1], file); return true; }
+    if ((m = t.match(/^(?:trocar\s+rosto|colocar\s+(?:o\s+)?rosto\s+d[oa]s?)\s+(.+)$/i))) { await runFaceSwap(m[1], file); return true; }
+    if ((m = t.match(/^(?:pesquisar\s+iceberg|buscar\s+osint|pesquisar)\s+(.+)$/i))) { await executeIcebergSearch(m[1]); return true; }
+    if ((m = t.match(/^(?:inspecionar\s+url|acessar\s+onion|acessar\s+i2p)\s+(\S+)$/i))) { await executeOsintInspect(m[1]); return true; }
+    if ((m = t.match(/^(?:gerar\s+imagem|criar\s+imagem|desenhar)\s+(.+)$/i))) { await runCloudMedia("image", m[1]); return true; }
+    if ((m = t.match(/^gerar\s+video\s+gpu\s+(.+)$/i))) { await runColabTool("video_gpu", {prompt: m[1]}); return true; }
+    if ((m = t.match(/^gerar\s+video\s+(.+)$/i))) { await runCloudMedia("video", m[1]); return true; }
+    if ((m = t.match(/^(?:transcrever|legendar)\s+(\S+)$/i))) { await runColabTool("whisper", {url: m[1]}); return true; }
+    if ((m = t.match(/^(?:crawl|playwright|extrair\s+site)\s+(\S+)$/i))) { await runColabTool("crawl4ai", {url: m[1]}); return true; }
+    if ((m = t.match(/^ia\s+gpu\s+(.+)$/i))) { await runColabTool("llm_gpu", {prompt: m[1]}); return true; }
+    if ((m = t.match(/^ia\s+(.+)$/i))) { await askInstantLlm(m[1], st.inCall); return true; }
+    if ((m = t.match(/^python\s+(.+)$/i))) { await runColabTool("python", {code: m[1]}); return true; }
+    if ((m = t.match(/^mcp\s+(.+)$/i))) { await runColabTool("mcp", {server: m[1]}); return true; }
+    if ((m = t.match(/(https?:\/\/\S+\.(?:onion|i2p)\S*)/i))) { await executeOsintInspect(m[1]); return true; }
+    return false;
+  }
+
+  const dock = document.createElement("div");
+  dock.style.cssText = "position:fixed;bottom:62px;right:12px;z-index:999";
+  dock.innerHTML = `
+    <button id="b2" style="background:#1e293b;color:#38bdf8;border:1px solid #334155;border-radius:20px;padding:6px 12px">⚙ Config 2B</button>
+    <div id="p2" style="display:none;background:#0b1220;border:1px solid #1e3a5f;padding:12px;border-radius:10px;margin-top:6px;width:295px;font-size:12px">
+      <div style="font-weight:bold;color:#22d3ee;margin-bottom:6px">LUX-Ω v8.0 Omnipotent</div>
+      <input id="c-nb" placeholder="Link exato do Notebook Colab" value="${st.colabNotebook}" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:6px;font-size:11px"/>
+      <label style="display:flex;align-items:center;gap:6px;margin-bottom:6px;color:#cbd5e1">
+        <input type="checkbox" id="c-aw" ${st.autoWake ? "checked" : ""}/> Auto-Ativar Colab sob demanda
+      </label>
+      <select id="c-ve" style="width:100%;background:#070b14;color:#fff;border:1px solid #334155;padding:6px;border-radius:6px;margin-bottom:6px">
+        <option value="f5">Voz Studio: F5-TTS + Auto-Whisper</option>
+        <option value="xtts">Voz Studio: XTTS-v2 Multilíngue</option>
+      </select>
+      <select id="c-lp" style="width:100%;background:#070b14;color:#fff;border:1px solid #334155;padding:6px;border-radius:6px;margin-bottom:6px">
+        <option value="pollinations">Cérebro Nuvem: Grátis (0 Tokens)</option>
+        <option value="groq">Cérebro Nuvem: Groq (Llama 3.3 70B)</option>
+        <option value="openrouter">Cérebro Nuvem: OpenRouter (DeepSeek R1)</option>
+      </select>
+      <input id="c-lk" type="password" placeholder="API Key Groq/OpenRouter (Opcional)" value="${st.llmKey}" style="width:100%;box-sizing:border-box;margin-bottom:6px;padding:6px;font-size:11px"/>
+      <button id="c-acc" style="width:100%;background:#d97706;color:#fff;border:none;padding:7px;border-radius:6px;margin-bottom:6px">📱 Ativar Acessibilidade Android</button>
+      <button id="c-open" style="width:100%;background:#7c3aed;color:#fff;border:none;padding:7px;border-radius:6px;margin-bottom:6px">🔑 Abrir Colab Interno (Login Único)</button>
+      <button id="c-save" style="width:100%;background:#059669;color:#fff;border:none;padding:7px;border-radius:6px;margin-bottom:6px">Salvar & Sincronizar</button>
+      <button id="tp" style="width:100%;background:#0284c7;color:#fff;border:none;padding:7px;border-radius:6px">Testar Proxies & Acessibilidade</button>
+      <div id="st" style="margin-top:6px;color:#94a3b8"></div>
+    </div>`;
+  document.body.appendChild(dock);
+  document.getElementById("c-ve").value = st.voiceEngine;
+  document.getElementById("c-lp").value = st.llmProvider;
+  document.getElementById("b2").onclick = () => { const p = document.getElementById("p2"); p.style.display = p.style.display === "none" ? "block" : "none"; };
+  document.getElementById("c-acc").onclick = () => { if (window.AndroidBridge) window.AndroidBridge.openAccessibilitySettings(); };
+  document.getElementById("c-open").onclick = () => { if (window.AndroidBridge) window.AndroidBridge.wakeColab(st.colabNotebook); };
+  document.getElementById("c-save").onclick = async () => {
+    st.colabNotebook = document.getElementById("c-nb").value.trim();
+    st.autoWake = document.getElementById("c-aw").checked;
+    st.voiceEngine = document.getElementById("c-ve").value;
+    st.llmProvider = document.getElementById("c-lp").value;
+    st.llmKey = document.getElementById("c-lk").value.trim();
+    localStorage.setItem("lux_colab_nb", st.colabNotebook);
+    localStorage.setItem("lux_autowake", st.autoWake ? "1" : "0");
+    localStorage.setItem("lux_voice_eng", st.voiceEngine);
+    localStorage.setItem("lux_llm_prov", st.llmProvider);
+    localStorage.setItem("lux_llm_key", st.llmKey);
+    await syncColab();
+  };
+  document.getElementById("tp").onclick = async () => {
+    const d = await api("/health", {method:"GET"});
+    document.getElementById("st").innerText = `Tor: ${d.proxies.tor_socks5h.status} | I2P: ${d.proxies.i2pd_http.status} | Acessibilidade: ${d.accessibility}`;
+  };
+  syncColab();
+  window.LUX_ICEBERG = { executeIcebergSearch, executeOsintInspect, handleDirectChatCommand, askInstantLlm, syncColab };
+})();
+EOF
+
+      - name: Configurar JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configurar Gradle 8.5
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5'
+
+      - name: Compilar APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Publicar APK para Download
+        uses: actions/upload-artifact@v4
+        with:
+          name: LUX-Omega-v8.0-Omnipotent-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
